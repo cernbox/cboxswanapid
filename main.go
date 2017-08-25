@@ -50,11 +50,16 @@ func main() {
 
 	router := mux.NewRouter()
 
-	tokenHandler := handlers.CheckSharedSecret(logger, fSecret, handlers.Token(logger, fSignKey))
+	//tokenHandler := handlers.CheckSharedSecret(logger, fSecret, handlers.Token(logger, fSignKey))
+	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, fSignKey))
 	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger))
 
-	router.Handle("/api/v1/token/{username}", tokenHandler).Methods("GET")
-	router.Handle("/api/v1/shared", sharedHandler).Methods("GET")
+	notFoundHandler :=  handlers.CheckJWTToken(logger, fSignKey, handlers.Handle404(logger))
+
+	router.NotFoundHandler = notFoundHandler // all path are protected by token except below:
+
+	router.Handle("/swanapi/v1/token", tokenHandler).Methods("GET")
+	router.Handle("/swanapi/v1/shared", sharedHandler).Methods("GET")
 
 	out := getHTTPLoggerOut(fHTTPLog)
 	loggedRouter := gh.LoggingHandler(out, router)
