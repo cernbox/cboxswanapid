@@ -27,6 +27,7 @@ var fAppLog string
 var fHTTPLog string
 var fSignKey string
 var fSecret string
+var fAllowFrom string;
 
 func init() {
 	flag.BoolVar(&fVersion, "version", false, "Show version")
@@ -35,6 +36,7 @@ func init() {
 	flag.StringVar(&fHTTPLog, "httplog", "stderr", "File to log HTTP requests")
 	flag.StringVar(&fSecret, "secret", "changeme", "Shared secret with SWAN")
 	flag.StringVar(&fSignKey, "signkey", "changeme", "Secret to sign JWT tokens")
+	flag.StringVar(&fAllowFrom, "allowfrom", "swan[0-9]*.cern.ch", "Check the Origin request header and return Bad Request if no match.")
 	flag.Parse()
 }
 
@@ -51,14 +53,14 @@ func main() {
 	router := mux.NewRouter()
 
 	//tokenHandler := handlers.CheckSharedSecret(logger, fSecret, handlers.Token(logger, fSignKey))
-	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, fSignKey))
+	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, fSignKey, fAllowFrom))
 	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger))
 
 	notFoundHandler :=  handlers.CheckJWTToken(logger, fSignKey, handlers.Handle404(logger))
 
 	router.NotFoundHandler = notFoundHandler // all path are protected by token except below:
 
-	router.Handle("/swanapi/v1/token", tokenHandler).Methods("GET")
+	router.Handle("/swanapi/v1/authenticate", tokenHandler).Methods("GET")
 	router.Handle("/swanapi/v1/shared", sharedHandler).Methods("GET")
 
 	out := getHTTPLoggerOut(fHTTPLog)

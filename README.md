@@ -7,6 +7,8 @@ SWAN API Daemon for CERNBox
 
 ### GET /authenticate
 
+Protected by shibboleth.
+
 Accessed through an iFrame. It has to return the header X-Frame-Options: ALLOW-FROM swanXXX.example.org to be possible to open it as an iFrame.
 
 Returns a page with a script that calls parent.postMessage(...) (https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage). This call should send a token with expire date.
@@ -20,16 +22,19 @@ X-Frame-Options: ALLOW-FROM  swanXXX.example.org
 <script>parent.postMessage({“authtoken”:”xxxx”,”expire”:”2017-06-20 13:00:00”}, 'swanXXX.example.org');</script>
 ```
 
-
 ## Sharing API
+
+All API requests need a valid authtoken (provided by /authenticate) in the request header:
+
+```
+
+Authorization: Bearer <authtoken>
+
+```
 
 ### GET /sharing
 
 Returns a list of all projects that I share
-
-Headers
-
-authtoken: token provided by /authenticate
 
 Response Examples
 
@@ -51,10 +56,6 @@ Response Examples
 ### GET /shared
 
 Returns all the projects shared with me
-
-Headers
-
-authtoken: token provided by /authenticate
 
 Response Examples
 
@@ -79,10 +80,6 @@ Response Examples
 ### GET /share
 
 Returns the people to whom I share a Project
-
-Headers
-
-authtoken: token provided by /authenticate
 
 Query Params
 
@@ -117,10 +114,6 @@ Response Examples
 
 Shares a project with someone or updates the sharing.
 
-Headers
-
-authtoken: token provided by /authenticate
-
 Query Params
 
 project: path of the project (“Swan Projects/Project 1/”)
@@ -151,10 +144,6 @@ Response Examples
 
 Removes the sharing from a project
 
-Headers
-
-authtoken: token provided by /authenticate
-
 Query Params
 
 project: path of the project (“Swan Projects/Project 1/”)
@@ -173,10 +162,6 @@ Response Examples
 ### GET /clone
 
 Clone a project to the local CERNBox
-
-Headers
-
-authtoken: token provided by /authenticate
 
 Query Params
 
@@ -199,10 +184,6 @@ Response Examples
 ### GET /user
 
 Searches the server's contact directory. Used in autocomplete.
-
-Headers
-
-authtoken: token provided by /authenticate
 
 Query Params
 

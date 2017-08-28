@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
+	"regexp"
 	"fmt"
 )
 
@@ -74,34 +74,49 @@ func CheckNothing(logger *zap.Logger, handler http.Handler) http.Handler {
 
 
 
-func Token(logger *zap.Logger, signKey string) http.Handler {
+func Token(logger *zap.Logger, signKey string, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-	        logger.Debug(formatRequest(r))
+	        logger.Info(formatRequest(r))
 
 		username := r.Header.Get("adfs_login") // this comes back from shibolleth (the name of the header depends on shibd configuration)
+
 		if username == "" {
 			logger.Error("Request header 'adfs_login' is empty or not set")
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
+
+		origin := r.Header.Get("Origin") // check origin header
+
+		matched,_ := regexp.MatchString(allowFrom,origin)
+		
+		if !matched {
+		
+		       logger.Error(fmt.Sprintf("Request header Origin '%s' does not match allowFrom pattern '%s'",origin,allowFrom))
+		       w.WriteHeader(http.StatusBadRequest)
+		       return
+		}
+
+		expire := time.Now().Add(time.Second * 3600)
+
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
 		claims := token.Claims.(jwt.MapClaims)
 		claims["username"] = username
-		claims["exp"] = time.Now().Add(time.Second * 3600).UnixNano() // TODO(labkode): expire data in config
+		claims["exp"] = expire.UnixNano() // TODO(labkode): expire data in config
 		tokenString, _ := token.SignedString([]byte(signKey))
 
 		response := &struct {
-			Token string `json:"token"`
-		}{Token: tokenString}
+			Token string `json:"authtoken"`
+			Expire time.Time `json:"expire"`
+		}{Token: tokenString, Expire: expire}
 
 		jsonBody, _ := json.Marshal(response)
 
+		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s",origin))
+		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", " + origin + ");</script>"))
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("X-Frame-Options", "ALLOW-FROM  swan.example.org")
-		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", 'swan.example.org');</script>"))
-		w.Write(jsonBody)
 	})
 }
 
