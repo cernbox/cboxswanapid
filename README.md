@@ -21,9 +21,6 @@ Response headers
 X-Frame-Options: ALLOW-FROM swanXXX.example.org
 ```
 
-
-
-
 Accessed through an iFrame. Hence it sets the header X-Frame-Options to be possible to open it as an iFrame.
 
 Returns a page with a script that calls parent.postMessage(...) (https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage). This call should send a token with expire date (ISO format).
@@ -31,9 +28,6 @@ Returns a page with a script that calls parent.postMessage(...) (https://develop
 Response Examples
 
 ```
-200
-
-X-Frame-Options: ALLOW-FROM  swanXXX.example.org
 <script>parent.postMessage({“authtoken”:”xxxx”,”expire”:”2017-06-20 13:00:00”}, 'swanXXX.example.org');</script>
 ```
 
