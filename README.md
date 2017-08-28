@@ -9,9 +9,24 @@ SWAN API Daemon for CERNBox
 
 Protected by shibboleth.
 
-Accessed through an iFrame. It has to return the header X-Frame-Options: ALLOW-FROM swanXXX.example.org to be possible to open it as an iFrame.
+Request headers
 
-Returns a page with a script that calls parent.postMessage(...) (https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage). This call should send a token with expire date.
+```
+Origin: swanXXX.example.org
+```
+
+Response headers
+
+```
+X-Frame-Options: ALLOW-FROM swanXXX.example.org
+```
+
+
+
+
+Accessed through an iFrame. Hence it sets the header X-Frame-Options to be possible to open it as an iFrame.
+
+Returns a page with a script that calls parent.postMessage(...) (https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage). This call should send a token with expire date (ISO format).
 
 Response Examples
 
