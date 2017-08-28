@@ -99,12 +99,12 @@ func Token(logger *zap.Logger, signKey string, allowFrom string) http.Handler {
 		       return
 		}
 
-		expire := time.Now().Add(time.Second * 3600)
+		expire := time.Now().Add(time.Second + 3600) // TODO(labkode): expire data in config
 
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
 		claims := token.Claims.(jwt.MapClaims)
 		claims["username"] = username
-		claims["exp"] = expire.UnixNano() // TODO(labkode): expire data in config
+		claims["exp"] = expire.UnixNano() 
 		tokenString, _ := token.SignedString([]byte(signKey))
 
 		response := &struct {
