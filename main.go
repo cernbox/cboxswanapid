@@ -36,7 +36,7 @@ func init() {
 	flag.StringVar(&fHTTPLog, "httplog", "stderr", "File to log HTTP requests")
 	flag.StringVar(&fSecret, "secret", "changeme", "Shared secret with SWAN")
 	flag.StringVar(&fSignKey, "signkey", "changeme", "Secret to sign JWT tokens")
-	flag.StringVar(&fAllowFrom, "allowfrom", "swan[0-9]*.cern.ch", "Check the Origin request header and return Bad Request if no match.")
+	flag.StringVar(&fAllowFrom, "allowfrom", "swan[a-z0-9-]*.cern.ch", "Check the Referer/Origin request header (depending on the endpoint) and return Bad Request if no match.")
 	flag.Parse()
 }
 

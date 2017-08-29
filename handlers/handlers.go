@@ -7,6 +7,7 @@ import (
 //	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
+        "net/url"
 	"strings"
 	"time"
 	"regexp"
@@ -87,17 +88,25 @@ func Token(logger *zap.Logger, signKey string, allowFrom string) http.Handler {
 			return
 		}
 
+		referer,err := url.Parse(r.Header.Get("Referer"))
 
-		origin := r.Header.Get("Origin") // check origin header
+		if err != nil {
+		   logger.Error(fmt.Sprintf("Error parsing Referer header: '%s' %s",r.Header.Get("Referer"), err))
+		   w.WriteHeader(http.StatusBadRequest)
+		   return
+		}
 
-		matched,_ := regexp.MatchString(allowFrom,origin)
+		matched,_ := regexp.MatchString(allowFrom,referer.Host)
 		
-		if !matched {
-		
-		       logger.Error(fmt.Sprintf("Request header Origin '%s' does not match allowFrom pattern '%s'",origin,allowFrom))
+		if !matched {		
+		       logger.Error(fmt.Sprintf("Referer host '%s' does not match allowFrom pattern '%s'",referer.Host,allowFrom))
 		       w.WriteHeader(http.StatusBadRequest)
 		       return
 		}
+
+		allowed_url := url.URL{Scheme:referer.Scheme, Host:referer.Host}
+		allowed_host := allowed_url.String(); // format the allowed host including the scheme
+		//logger.Info(fmt.Sprintf("***** ALLOWED_HOST: %s",allowed_host))
 
 		expire := time.Now().Add(time.Second + 3600) // TODO(labkode): expire data in config
 
@@ -114,8 +123,8 @@ func Token(logger *zap.Logger, signKey string, allowFrom string) http.Handler {
 
 		jsonBody, _ := json.Marshal(response)
 
-		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s",origin))
-		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", " + origin + ");</script>"))
+		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s",allowed_host))
+		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", '" + allowed_host + "');</script>"))
 		w.WriteHeader(http.StatusOK)
 	})
 }
@@ -201,4 +210,13 @@ func Shared(logger *zap.Logger) http.Handler {
 		jsonResponse, _ := json.Marshal(res)
 		w.Write(jsonResponse)
 	})
+}
+
+
+func Shared(logger *zap.Logger, methods []string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	
+
+	}
 }
