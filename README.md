@@ -12,13 +12,13 @@ Protected by shibboleth.
 Request headers
 
 ```
-Origin: swanXXX.example.org
+Referer: https://swanXXX.example.org
 ```
 
 Response headers
 
 ```
-X-Frame-Options: ALLOW-FROM swanXXX.example.org
+X-Frame-Options: ALLOW-FROM https://swanXXX.example.org
 ```
 
 Accessed through an iFrame. Hence it sets the header X-Frame-Options to be possible to open it as an iFrame.
@@ -28,7 +28,7 @@ Returns a page with a script that calls parent.postMessage(...) (https://develop
 Response Examples
 
 ```
-<script>parent.postMessage({“authtoken”:”xxxx”,”expire”:”2017-06-20 13:00:00”}, 'swanXXX.example.org');</script>
+<script>parent.postMessage({“authtoken”:”xxxx”,”expire”:”2017-06-20 13:00:00”}, 'https://swanXXX.example.org');</script>
 ```
 
 ## Sharing API
