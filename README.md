@@ -12,7 +12,7 @@ Protected by shibboleth.
 Request headers
 
 ```
-Referer: https://swanXXX.example.org
+Referer: https://swanXXX.cern.ch
 ```
 
 Response headers
@@ -28,7 +28,7 @@ Returns a page with a script that calls parent.postMessage(...) (https://develop
 Response Examples
 
 ```
-<script>parent.postMessage({“authtoken”:”xxxx”,”expire”:”2017-06-20 13:00:00”}, 'https://swanXXX.example.org');</script>
+<script>parent.postMessage({"authtoken":"xxxx","expire":"2017-06-20 13:00:00"}, 'https://swanXXX.cern.ch');</script>
 ```
 
 ## Sharing API
@@ -41,6 +41,31 @@ Authorization: Bearer <authtoken>
 
 ```
 
+Each endpoint also needs to implement the method OPTIONS. This is used for CORS' cross-origin HTTP requests.
+
+When a cross-origin request is done, the browser first issues a preflight request, asking the 
+server for permission to make the actual request.
+
+These methods should verify the following headers:
+ * Origin - check if it comes from https://swanXXX.cern.ch
+ * Access-Control-Request-Method - check if the method asked is valid
+ * Access-Control-Request-Headers - check if the headers asked are 'Authorization', as it is the only 
+ header used in this API
+ 
+The reply to this request should contain the following headers:
+
+ ```
+ 
+ Access-Control-Allow-Origin: https://swanXXX.cern.ch
+ Access-Control-Allow-Methods: GET, POST, PUT, DELETE (depending on the endpoint)
+ Access-Control-Allow-Headers: Authorization
+ 
+ ```
+ 
+ In the Allow-Methods, the list should contain all the methods allowed on that endpoint, so that the browser can cache 
+ this reply.
+ 
+
 ### GET /sharing
 
 Returns a list of all projects that I share
@@ -50,15 +75,15 @@ Response Examples
 ```
 200
 
-{“sharing”: [
-    “Swan Projects/Project 1/”,
-    “Swan Projects/Project 2/”
+{"sharing": [
+    "Swan Projects/Project 1/",
+    "Swan Projects/Project 2/"
 ]}
 ```
 ```
 200
 
-{“sharing”: [
+{"sharing": [
 ]}
 ```
 
@@ -70,19 +95,19 @@ Response Examples
 
 ```
 200
-{“shared”: [
+{"shared": [
     {
-        “user”:{"name":”Diogo C.”,"user":"diogo"},
-        “path”:”/users/d/diogo/Swan Projects/Project 1”,
-        “size”:10240,
-        “date”:”2017-06-20 11:00:00”
+        "user":{"name":"Diogo C.","user":"diogo"},
+        "path":"/users/d/diogo/Swan Projects/Project 1",
+        "size":10240,
+        "date":"2017-06-20 11:00:00"
     }
 ]}
 ```
 
 ```
 200
-{“sharing”: [
+{"sharing": [
 ]}
 ```
 
@@ -92,45 +117,45 @@ Returns the people to whom I share a Project
 
 Query Params
 
-project: path of the project (“Swan Projects/Project 1/”)
+project: path of the project ("Swan Projects/Project 1/")
 
 Response Examples
 
 ```
 200
 
-{“share”: [
+{"share": [
 ]}
 ```
 
 ```
 200
 
-{“share”: [
+{"share": [
     {
-        “value”:{"shareType":0,"shareWith":"diogo"},
-        “label”:”Diogo C. (diogo)”
+        "value":{"shareType":0,"shareWith":"diogo"},
+        "label":"Diogo C. (diogo)"
     },
     {
-        “value”:{"shareType":1,"shareWith":"Admin-something"},
-        “label”:”Admins (Group)”
+        "value":{"shareType":1,"shareWith":"Admin-something"},
+        "label":"Admins (Group)"
     }
 ]}
 ```
 
 
-### POST/PUT share
+### POST+PUT /share
 
 Shares a project with someone or updates the sharing.
 
 Query Params
 
-project: path of the project (“Swan Projects/Project 1/”)
+project: path of the project ("Swan Projects/Project 1/")
 
 Body
 
 ```
-{“share”:[
+{"share":[
     {"shareType":0,"shareWith":"diogo"},
     {"shareType":1,"shareWith":"Admin-something"}
 ]}
@@ -146,7 +171,7 @@ Response Examples
 ```
 400
 
-{“error”:”message”}
+{"error":"message"}
 ```
 
 ### DELETE /share
@@ -155,7 +180,7 @@ Removes the sharing from a project
 
 Query Params
 
-project: path of the project (“Swan Projects/Project 1/”)
+project: path of the project ("Swan Projects/Project 1/")
 
 Response Examples
 
@@ -165,7 +190,7 @@ Response Examples
 ```
 400
 
-{“error”:”message”}
+{"error":"message"}
 ```
 
 ### GET /clone
@@ -174,8 +199,8 @@ Clone a project to the local CERNBox
 
 Query Params
 
-project: path of the project (“/users/d/diogo/Swan Projects/Project 1”)
-destination: path of where to put the copy (“Swan Projects/Project 3/”)
+project: path of the project ("/users/d/diogo/Swan Projects/Project 1")
+destination: path of where to put the copy ("Swan Projects/Project 3/")
 
 Response Examples
 
@@ -185,7 +210,7 @@ Response Examples
 
 ```
 406
-{“error”:”Name already exists”}
+{"error":"Name already exists"}
 ```
 
 ## User API
