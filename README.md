@@ -49,10 +49,10 @@ server for permission to make the actual request.
 These methods should verify the following headers:
  * Origin - check if it comes from https://swanXXX.cern.ch
  * Access-Control-Request-Method - check if the method asked is valid
- * Access-Control-Request-Headers - check if the headers asked are 'Authorization', as it is the only 
+ * Access-Control-Request-Headers - check if it only contains 'Authorization', as it is the only 
  header used in this API
  
-The reply to this request should contain the following headers:
+The reply to this request needs the following headers:
 
  ```
  
@@ -62,8 +62,10 @@ The reply to this request should contain the following headers:
  
  ```
  
- In the Allow-Methods, the list should contain all the methods allowed on that endpoint, so that the browser can cache 
- this reply.
+In the Allow-Methods, the list should contain all the methods allowed on that endpoint, so that the browser can cache 
+this reply.
+
+The header Access-Control-Allow-Origin also needs to be present in _every_ method reply besides OPTIONS.
  
 
 ### GET /sharing
