@@ -73,9 +73,16 @@ func CheckNothing(logger *zap.Logger, handler http.Handler) http.Handler {
 }
 
 
+func CheckHostAllowed(origin string, allowFrom string) bool {
+     
+     // TODO: case insensitive
+     matched,_ := regexp.MatchString(allowFrom,origin)
 
+     return matched
 
-func Token(logger *zap.Logger, signKey string, allowFrom string) http.Handler {
+}
+
+func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 	        logger.Info(formatRequest(r))
@@ -96,17 +103,21 @@ func Token(logger *zap.Logger, signKey string, allowFrom string) http.Handler {
 		   return
 		}
 
-		matched,_ := regexp.MatchString(allowFrom,referer.Host)
-		
-		if !matched {		
+		referer_url := url.URL{Scheme:referer.Scheme, Host:referer.Host}
+		referer_host := referer_url.String(); // format the allowed host including the scheme
+
+		if referer_host == shibReferer {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		if !CheckHostAllowed(referer_host, allowFrom) {
 		       logger.Error(fmt.Sprintf("Referer host '%s' does not match allowFrom pattern '%s'",referer.Host,allowFrom))
 		       w.WriteHeader(http.StatusBadRequest)
 		       return
-		}
+		       }
 
-		allowed_url := url.URL{Scheme:referer.Scheme, Host:referer.Host}
-		allowed_host := allowed_url.String(); // format the allowed host including the scheme
-		//logger.Info(fmt.Sprintf("***** ALLOWED_HOST: %s",allowed_host))
+		//logger.Info(fmt.Sprintf("***** ALLOWED_HOST: %s",referer_host))
 
 		expire := time.Now().Add(time.Second + 3600) // TODO(labkode): expire data in config
 
@@ -123,8 +134,8 @@ func Token(logger *zap.Logger, signKey string, allowFrom string) http.Handler {
 
 		jsonBody, _ := json.Marshal(response)
 
-		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s",allowed_host))
-		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", '" + allowed_host + "');</script>"))
+		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s",referer_host))
+		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", '" + referer_host + "');</script>"))
 		w.WriteHeader(http.StatusOK)
 	})
 }
@@ -171,8 +182,86 @@ func Handle404(logger *zap.Logger) http.Handler {
 	  })
      }
 
-func Shared(logger *zap.Logger) http.Handler {
+
+func Handle200(logger *zap.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	          logger.Info(formatRequest(r))
+	          //w.WriteHeader(http.Success)
+	  })
+     }
+
+// Handle CORS Origin header and return true if the request is allowed to continue
+func CORSProcessOriginHeader(logger *zap.Logger, w http.ResponseWriter, r *http.Request, allowFrom string) bool {
+
+     	origin,err := url.Parse(r.Header.Get("Origin"))
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error parsing Origin header: '%s' %s",r.Header.Get("Origin"), err))
+		 w.WriteHeader(http.StatusBadRequest)
+		 return false
+	}
+
+	x := url.URL{Scheme:origin.Scheme, Host:origin.Host}
+	origin_url := x.String(); // format the allowed host including the scheme
+
+	if !CheckHostAllowed(origin_url, allowFrom) {
+	       logger.Error(fmt.Sprintf("Origin URL '%s' does not match allowFrom pattern '%s'",origin.Host,allowFrom))
+	       w.WriteHeader(http.StatusBadRequest)
+	       return false
+	       }
+
+	w.Header().Set("Access-Control-Allow-Origin",origin_url)
+	return true
+}
+
+
+func stringInSlice(str string, list []string) bool {
+ 	for _, v := range list {
+ 		if v == str {
+ 			return true
+ 		}
+ 	}
+ 	return false
+ }
+
+
+func Options(logger *zap.Logger, allowedMethods []string, allowFrom string ) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
+	   return 
+	}
+
+	x := r.Header.Get("Access-Control-Request-Headers")
+
+	if strings.ToUpper(x) != "AUTHORIZATION" {
+	       logger.Error(fmt.Sprintf("OPTIONS: Wrong or missing Access-Control-Request-Headers header: '%s'",x))
+	       w.WriteHeader(http.StatusBadRequest)
+	       return
+	}
+
+	x = r.Header.Get("Access-Control-Request-Method")
+
+	if ! stringInSlice(strings.ToUpper(x),allowedMethods) {
+	       logger.Error(fmt.Sprintf("OPTIONS: Wrong or missing Access-Control-Request-Method header: '%' ",x))
+	       w.WriteHeader(http.StatusBadRequest)
+	       return
+	}
+
+	w.Header().Set("Access-Control-Allow-Methods",strings.Join(allowedMethods,","))
+	w.Header().Set("Access-Control-Allow-Headers","Authorization")
+
+})
+}
+
+func Shared(logger *zap.Logger, allowFrom string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	        
+		if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
+	   	  return 
+		}
+
 		v := r.Context().Value("username")
 		username, _ := v.(string)
 
@@ -212,11 +301,3 @@ func Shared(logger *zap.Logger) http.Handler {
 	})
 }
 
-
-func Shared(logger *zap.Logger, methods []string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-	
-
-	}
-}

@@ -28,6 +28,7 @@ var fHTTPLog string
 var fSignKey string
 var fSecret string
 var fAllowFrom string;
+var fShibReferer string;
 
 func init() {
 	flag.BoolVar(&fVersion, "version", false, "Show version")
@@ -37,6 +38,7 @@ func init() {
 	flag.StringVar(&fSecret, "secret", "changeme", "Shared secret with SWAN")
 	flag.StringVar(&fSignKey, "signkey", "changeme", "Secret to sign JWT tokens")
 	flag.StringVar(&fAllowFrom, "allowfrom", "swan[a-z0-9-]*.cern.ch", "Check the Referer/Origin request header (depending on the endpoint) and return Bad Request if no match.")
+	flag.StringVar(&fShibReferer, "shibreferer", "https://login.cern.ch", "Shibolleth referer for /authenticate request.")
 	flag.Parse()
 }
 
@@ -53,15 +55,18 @@ func main() {
 	router := mux.NewRouter()
 
 	//tokenHandler := handlers.CheckSharedSecret(logger, fSecret, handlers.Token(logger, fSignKey))
-	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, fSignKey, fAllowFrom))
-	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger))
+	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, fSignKey, fAllowFrom, fShibReferer))
+
+	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom))
 
 	notFoundHandler :=  handlers.CheckJWTToken(logger, fSignKey, handlers.Handle404(logger))
 
-	router.NotFoundHandler = notFoundHandler // all path are protected by token except below:
+	router.NotFoundHandler = notFoundHandler // default protection for non-existing resources is JWT
 
 	router.Handle("/swanapi/v1/authenticate", tokenHandler).Methods("GET")
 	router.Handle("/swanapi/v1/shared", sharedHandler).Methods("GET")
+
+	router.Handle("/swanapi/v1/shared", handlers.Options(logger,[]string{"GET"},fAllowFrom)).Methods("OPTIONS")
 
 	out := getHTTPLoggerOut(fHTTPLog)
 	loggedRouter := gh.LoggingHandler(out, router)
