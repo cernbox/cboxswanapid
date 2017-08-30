@@ -38,16 +38,27 @@ All API requests need a valid authtoken (provided by /authenticate) in the reque
 ```
 
 Authorization: Bearer <authtoken>
-
+Origin: https://swanXXX.example.org
 ```
 
-Each endpoint also needs to implement the method OPTIONS. This is used for CORS' cross-origin HTTP requests.
+Missing or wrong Authorization results in 403. Missing or wrong Origin results in 400.
+
+
+Every API reponse has the following CORS header:
+
+```
+Access-Control-Allow-Origin: https//swanXXX.example.org
+```
+
+### OPTIONS
+
+Each API endpoint needs to implement the method OPTIONS. This is used for CORS' cross-origin HTTP requests. OPTIONS request are not authenticated but they require a valid Origin header.
 
 When a cross-origin request is done, the browser first issues a preflight request, asking the 
 server for permission to make the actual request.
 
 These methods should verify the following headers:
- * Origin - check if it comes from https://swanXXX.cern.ch
+ * Origin - check if it comes from https://swanXXX.example.org
  * Access-Control-Request-Method - check if the method asked is valid
  * Access-Control-Request-Headers - check if it only contains 'Authorization', as it is the only 
  header used in this API
@@ -65,7 +76,6 @@ The reply to this request needs the following headers:
 In the Allow-Methods, the list should contain all the methods allowed on that endpoint, so that the browser can cache 
 this reply.
 
-The header Access-Control-Allow-Origin also needs to be present in _every_ method reply besides OPTIONS.
  
 
 ### GET /sharing
