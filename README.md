@@ -41,7 +41,7 @@ Authorization: Bearer <authtoken>
 Origin: https://swanXXX.example.org
 ```
 
-Missing or wrong Authorization header results in 401. Missing or wrong Origin header results in 400.
+Missing or wrong Authorization header results in 401 Unauthorized. Missing or wrong Origin header results in 400 Bad Request.
 
 
 Every API reponse has the following CORS header:
@@ -62,7 +62,10 @@ OPTIONS request verifies the following headers:
  * Access-Control-Request-Method - check if the method asked is valid
  * Access-Control-Request-Headers - check if it only contains 'Authorization', as it is the only 
  header used in this API
- 
+
+Anything wrong with these request headers results in 400 Bad Request response.
+
+
 The reply to OPTIONS request needs the following headers:
 
  ```
