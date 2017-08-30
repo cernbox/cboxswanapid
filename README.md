@@ -52,18 +52,18 @@ Access-Control-Allow-Origin: https//swanXXX.example.org
 
 ### OPTIONS
 
-Each API endpoint needs to implement the method OPTIONS. This is used for CORS' cross-origin HTTP requests. OPTIONS request are not authenticated but they require a valid Origin header.
-
-When a cross-origin request is done, the browser first issues a preflight request, asking the 
+Each API endpoint needs to implement the method OPTIONS. This is used for CORS' cross-origin HTTP requests. When a cross-origin request is done, the browser first issues a preflight OPTIONS request, asking the 
 server for permission to make the actual request.
 
-These methods should verify the following headers:
+OPTIONS request are not authenticated but they require a valid Origin header.
+
+OPTIONS request verifies the following headers:
  * Origin - check if it comes from https://swanXXX.example.org
  * Access-Control-Request-Method - check if the method asked is valid
  * Access-Control-Request-Headers - check if it only contains 'Authorization', as it is the only 
  header used in this API
  
-The reply to this request needs the following headers:
+The reply to OPTIONS request needs the following headers:
 
  ```
  
