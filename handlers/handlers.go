@@ -119,7 +119,7 @@ func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer str
 
 		//logger.Info(fmt.Sprintf("***** ALLOWED_HOST: %s",referer_host))
 
-		expire := time.Now().Add(time.Second + 3600) // TODO(labkode): expire data in config
+		expire := time.Now().Add(time.Duration(3600)*time.Second) // TODO(labkode): expire data in config
 
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
 		claims := token.Claims.(jwt.MapClaims)
