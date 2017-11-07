@@ -57,7 +57,11 @@ func main() {
 	//tokenHandler := handlers.CheckSharedSecret(logger, fSecret, handlers.Token(logger, fSignKey))
 	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, fSignKey, fAllowFrom, fShibReferer))
 
-	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom))
+	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"swan-list-projects-shared-with",false))
+	sharingHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"swan-list-projects-shared-by",false))
+	getIndividualShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"swan-list-projects-shared-by",true))
+	updateShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.UpdateShare(logger,fAllowFrom))
+	deleteShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.DeleteShare(logger,fAllowFrom))
 
 	notFoundHandler :=  handlers.CheckJWTToken(logger, fSignKey, handlers.Handle404(logger))
 
@@ -65,8 +69,13 @@ func main() {
 
 	router.Handle("/swanapi/v1/authenticate", tokenHandler).Methods("GET")
 	router.Handle("/swanapi/v1/shared", sharedHandler).Methods("GET")
+	router.Handle("/swanapi/v1/sharing", sharingHandler).Methods("GET")
+	router.Handle("/swanapi/v1/share", getIndividualShareHandler).Methods("GET")
+	router.Handle("/swanapi/v1/share", updateShareHandler).Methods("PUT")
+	router.Handle("/swanapi/v1/share", deleteShareHandler).Methods("DELETE")
 
 	router.Handle("/swanapi/v1/shared", handlers.Options(logger,[]string{"GET"},fAllowFrom)).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/sharing", handlers.Options(logger,[]string{"GET"},fAllowFrom)).Methods("OPTIONS")
 
 	out := getHTTPLoggerOut(fHTTPLog)
 	loggedRouter := gh.LoggingHandler(out, router)

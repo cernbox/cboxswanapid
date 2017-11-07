@@ -12,6 +12,8 @@ import (
 	"time"
 	"regexp"
 	"fmt"
+	"os/exec"
+	"bytes"
 )
 
 /////////////////
@@ -254,7 +256,152 @@ func Options(logger *zap.Logger, allowedMethods []string, allowFrom string ) htt
 })
 }
 
-func Shared(logger *zap.Logger, allowFrom string) http.Handler {
+/* ------------------------ */
+
+func executeCMD(cmd *exec.Cmd) (*bytes.Buffer,*bytes.Buffer, error) {
+
+     outBuf := &bytes.Buffer{}
+     errBuf := &bytes.Buffer{}
+     cmd.Stdout = outBuf
+     cmd.Stderr = errBuf
+     err := cmd.Run()
+
+     return outBuf, errBuf, err
+}
+
+func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	        
+		if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
+	   	  return 
+		}
+
+		v := r.Context().Value("username")
+		username, _ := v.(string)
+
+		logger.Info("loggedin user is " + username)
+
+		project := ""
+
+		m, err := url.ParseQuery(r.URL.RawQuery)
+
+		if err != nil {
+		    logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+		    
+		if val,ok := m["project"]; ok {
+		   project = val[0]
+		} else {
+		    logger.Error(fmt.Sprintf("URL missing query parameter: project not specified"))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+ 
+		args := []string{"-c","/root/kuba-config.php","--json","swan-delete-project-share",username,project}
+
+		logger.Info(fmt.Sprintf("cmd args %s",args))
+
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+
+		jsonResponse, errBuf, err := executeCMD(cmd)
+
+		if err != nil {
+
+		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'",cmd.Path,cmd.Args,err,errBuf.String()))
+		
+		// TODO: inject error string if applicable
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+		}
+
+		w.Write(jsonResponse.Bytes())
+
+
+})
+}
+
+func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	        
+		if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
+	   	  return 
+		}
+
+		v := r.Context().Value("username")
+		username, _ := v.(string)
+
+		logger.Info("loggedin user is " + username)
+
+		project := ""
+
+		m, err := url.ParseQuery(r.URL.RawQuery)
+
+		if err != nil {
+		    logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+		    
+		if val,ok := m["project"]; ok {
+		   project = val[0]
+		} else {
+		    logger.Error(fmt.Sprintf("URL missing query parameter: project not specified"))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+ 
+		args := []string{"-c","/root/kuba-config.php","--json","swan-update-project-share",username,project}
+
+		type Sharee struct {
+		     Name string   `json:"name"` // name of user or group
+		     Entity string `json:"entity"` // "u" is user, "egroup" is group
+		}
+
+		type ShareRequest struct {
+		     ShareWith []Sharee `json:"share_with"`
+		}
+
+		var share_request ShareRequest
+
+		if err = json.NewDecoder(r.Body).Decode(&share_request) ; err != nil {
+		   logger.Error(fmt.Sprintf("Cannot unmarshal JSON request body"))
+		   w.WriteHeader(http.StatusBadRequest)
+		   return
+		   }
+
+		logger.Info(fmt.Sprintf("request %s",share_request))
+
+		for i := range share_request.ShareWith {
+		  // FIXME: TODO: sanitize names
+		  // FIXME: TODO: check for missing fields, e.g. empty name or empty entity
+		  share := share_request.ShareWith[i]
+		  args = append(args,share.Entity + ":" + share.Name)
+		}
+
+		logger.Info(fmt.Sprintf("cmd args %s",args))
+
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+
+		jsonResponse, errBuf, err := executeCMD(cmd)
+
+		if err != nil {
+
+		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'",cmd.Path,cmd.Args,err,errBuf.String()))
+		
+		// TODO: inject error string if applicable
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+		}
+
+		w.Write(jsonResponse.Bytes())
+
+}) }
+
+
+
+func Shared(logger *zap.Logger, allowFrom string, action string, requireProject bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 	        
@@ -266,7 +413,27 @@ func Shared(logger *zap.Logger, allowFrom string) http.Handler {
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)
-		w.Write([]byte(username))
+
+		project := ""
+
+		if requireProject {
+
+		    m, err := url.ParseQuery(r.URL.RawQuery)
+
+		    if err != nil {
+		       logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
+		       w.WriteHeader(http.StatusBadRequest)
+		       return
+		    }
+		    
+		    if val,ok := m["project"]; ok {
+		      project = val[0]
+		    } else {
+		       logger.Error(fmt.Sprintf("URL missing query parameter: project not specified "))
+		       w.WriteHeader(http.StatusBadRequest)
+		       return
+		    }
+		}
 
 		type shareInfo struct {
 			User string `json:"user"`
@@ -279,25 +446,30 @@ func Shared(logger *zap.Logger, allowFrom string) http.Handler {
 			Shared []*shareInfo `json:"shared"`
 		}
 
-		res := &response{
-			Shared: []*shareInfo{
-				&shareInfo{
-					User: username,
-					Path: "Swan projects/project 1",
-					Size: 129399,
-					Date: time.Now().UnixNano(),
-				},
-				&shareInfo{
-					User: username,
-					Path: "Swan projects/project 2",
-					Size: 12939999,
-					Date: time.Now().UnixNano(),
-				},
-			},
+		args := []string{"-c","/root/kuba-config.php","--json",action}
+
+		if project != "" {
+		   args = append(args,"--project",project)
 		}
 
-		jsonResponse, _ := json.Marshal(res)
-		w.Write(jsonResponse)
+		args = append(args,username)
+
+		logger.Info(fmt.Sprintf("cmd args %s",args))
+
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+
+		jsonResponse, errBuf, err := executeCMD(cmd)
+
+		if err != nil {
+
+		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s' ",cmd.Path,cmd.Args,err,errBuf.String()))
+		
+		/* TODO: inject error string if applicable */
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+		}
+
+		w.Write(jsonResponse.Bytes())
 	})
 }
 
