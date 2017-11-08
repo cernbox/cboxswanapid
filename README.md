@@ -85,85 +85,57 @@ this reply.
 
 ### GET /sharing
 
-Returns a list of all projects that I share
+Returns a list of all projects shared by logged in user.
 
 Response Examples
 
 ```
 200
 
-{"sharing": [
-    "Swan Projects/Project 1/",
-    "Swan Projects/Project 2/"
+{ "shares": [
+    {"project": "SWAN Projects/SP1", 
+     "path": "/eos/scratch/user/m/moscicki/SWAN Projects/SP1", 
+     "shared_by": "moscicki", 
+     "size": "1300"
+     "inode": "10635762", 
+     "shared_with": [ 
+                {"permissions": "r", "created": "2017-11-07T19:45:54", "name": "moscicki", "entity": "u"}, 
+                {"permissions": "r", "created": "2017-11-07T19:45:54", "name": "kubam", "entity": "u"}
+              ]
+    }, 
+    {"project": "SWAN Projects/SP2", 
+     "path": "/eos/scratch/user/m/moscicki/SWAN Projects/SP2", 
+     "shared_by": "moscicki", 
+     "size": "1250667"}     
+     "inode": "10635763",
+     "shared_with": [ 
+                {"permissions": "r", "created": "2017-11-07T19:45:31", "name": "kubam", "entity": "u"}, 
+                {"permissions": "r", "created": "2017-11-07T19:45:31", "name": "kuba", "entity": "u"}
+              ] 
 ]}
-```
-```
-200
 
-{"sharing": [
-]}
 ```
 
 ### GET /shared
 
-Returns all the projects shared with me
+Returns all projects shared with the logged in user.
 
-Response Examples
+Response Examples: same as for /sharing
 
-```
-200
-{"shared": [
-    {
-        "user":{"name":"Diogo C.","user":"diogo"},
-        "path":"/users/d/diogo/Swan Projects/Project 1",
-        "size":10240,
-        "date":"2017-06-20 11:00:00"
-    }
-]}
-```
-
-```
-200
-{"sharing": [
-]}
-```
 
 ### GET /share
 
-Returns the people to whom I share a Project
+Returns details on a project shared by logged in user.
 
 Query Params
 
 project: path of the project ("Swan Projects/Project 1/")
 
-Response Examples
+Response Examples: same as for /sharing but contains only the chosen project entry
 
-```
-200
+### PUT /share
 
-{"share": [
-]}
-```
-
-```
-200
-
-{"share": [
-    {
-        "value":{"shareType":0,"shareWith":"diogo"},
-        "label":"Diogo C. (diogo)"
-    },
-    {
-        "value":{"shareType":1,"shareWith":"Admin-something"},
-        "label":"Admins (Group)"
-    }
-]}
-```
-
-
-### POST+PUT /share
-
-Shares a project with someone or updates the sharing.
+Shares a project with specified users or groups. If project was shared with other users or group it will not longer be shared them.
 
 Query Params
 
@@ -172,10 +144,10 @@ project: path of the project ("Swan Projects/Project 1/")
 Body
 
 ```
-{"share":[
-    {"shareType":0,"shareWith":"diogo"},
-    {"shareType":1,"shareWith":"Admin-something"}
-]}
+{"share_with": [
+   {"name":"moscicki", "entity":"u"}, 
+   {"name":"Higgs-search-team", "entity":"egroup"} 
+   ]}
 
 ```
 
