@@ -9,13 +9,12 @@ SWAN API Daemon for CERNBox
 
 Protected by shibboleth.
 
-You may need to make this request twice. If the request gets redirected to shibboleth login page then Referer request header points to the shibolleth login page instead of the original referer. In this case the response is 204 No Content (because we need the original referer to make the proper response). The subsequent request will have the shibboleth authentication already present in the cookies and request will be processed fully.
+You may need to make this request twice in case of shibboleth redirection.
 
-Request headers
 
-```
-Referer: https://swanXXX.cern.ch
-```
+Query parameter: 
+
+Origin : https://swanXXX.cern.ch
 
 Response headers
 
