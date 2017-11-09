@@ -97,21 +97,35 @@ func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer str
 			return
 		}
 
-		referer,err := url.Parse(r.Header.Get("Referer"))
+		m, err := url.ParseQuery(r.URL.RawQuery)
+
+		if err != nil {
+		    logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+
+		var origin string
+		    
+		if val,ok := m["Origin"]; ok {
+		   origin = val[0]
+		} else {
+		    logger.Error(fmt.Sprintf("URL missing origin query parameter"))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+
+		referer, err := url.Parse(origin)
 
 		if err != nil {
 		   logger.Error(fmt.Sprintf("Error parsing Referer header: '%s' %s",r.Header.Get("Referer"), err))
 		   w.WriteHeader(http.StatusBadRequest)
 		   return
 		}
+		
 
 		referer_url := url.URL{Scheme:referer.Scheme, Host:referer.Host}
 		referer_host := referer_url.String(); // format the allowed host including the scheme
-
-		if referer_host == shibReferer {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
 
 		if !CheckHostAllowed(referer_host, allowFrom) {
 		       logger.Error(fmt.Sprintf("Referer host '%s' does not match allowFrom pattern '%s'",referer.Host,allowFrom))
