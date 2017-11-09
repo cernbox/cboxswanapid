@@ -94,8 +94,8 @@ Response Examples
 200
 
 { "shares": [
-    {"project": "SWAN Projects/SP1", 
-     "path": "/eos/scratch/user/m/moscicki/SWAN Projects/SP1", 
+    {"project": "SWAN_projects/SP1", 
+     "path": "/eos/scratch/user/m/moscicki/SWAN_projects/SP1", 
      "shared_by": "moscicki", 
      "size": "1300"
      "inode": "10635762", 
@@ -104,8 +104,8 @@ Response Examples
                 {"permissions": "r", "created": "2017-11-07T19:45:54", "name": "kubam", "entity": "u"}
               ]
     }, 
-    {"project": "SWAN Projects/SP2", 
-     "path": "/eos/scratch/user/m/moscicki/SWAN Projects/SP2", 
+    {"project": "SWAN_projects/SP2", 
+     "path": "/eos/scratch/user/m/moscicki/SWAN_projects/SP2", 
      "shared_by": "moscicki", 
      "size": "1250667"}     
      "inode": "10635763",
@@ -131,7 +131,7 @@ Returns details on a project shared by logged in user.
 Query parameters
 
 ```
-project: path of the project ("Swan Projects/Project 1/")
+project: path of the project ("SWAN_projects/Project 1/")
 ```
 
 Response Examples: same as for /sharing but contains only the chosen project entry
@@ -142,7 +142,7 @@ Shares a project with specified users or groups. If project was shared with othe
 
 Query parameters
 ```
-project: path of the project ("Swan Projects/Project 1/")
+project: path of the project ("SWAN_projects/Project 1/")
 ```
 
 Body
@@ -174,7 +174,7 @@ Removes the sharing from a project
 Query Parameters
 
 ```
-project: path of the project ("Swan Projects/Project 1/")
+project: path of the project ("SWAN_projects/Project 1/")
 ```
 
 Response Examples
@@ -194,8 +194,8 @@ Clone a project to the local CERNBox
 
 Query Params
 
-project: path of the project ("/users/d/diogo/Swan Projects/Project 1")
-destination: path of where to put the copy ("Swan Projects/Project 3/")
+project: path of the project ("/users/d/diogo/SWAN_projects/Project 1")
+destination: path of where to put the copy ("SWAN_projects/Project 3/")
 
 Response Examples
 
