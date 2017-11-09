@@ -12,9 +12,11 @@ Protected by shibboleth.
 You may need to make this request twice in case of shibboleth redirection.
 
 
-Query parameter: 
+Query parameters: 
 
-Origin : https://swanXXX.cern.ch
+```
+Origin=https://swanXXX.cern.ch
+```
 
 Response headers
 
@@ -126,9 +128,11 @@ Response Examples: same as for /sharing
 
 Returns details on a project shared by logged in user.
 
-Query Params
+Query parameters
 
+```
 project: path of the project ("Swan Projects/Project 1/")
+```
 
 Response Examples: same as for /sharing but contains only the chosen project entry
 
@@ -136,9 +140,10 @@ Response Examples: same as for /sharing but contains only the chosen project ent
 
 Shares a project with specified users or groups. If project was shared with other users or group it will not longer be shared them.
 
-Query Params
-
+Query parameters
+```
 project: path of the project ("Swan Projects/Project 1/")
+```
 
 Body
 
@@ -166,9 +171,11 @@ Response Examples
 
 Removes the sharing from a project
 
-Query Params
+Query Parameters
 
+```
 project: path of the project ("Swan Projects/Project 1/")
+```
 
 Response Examples
 
