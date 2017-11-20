@@ -53,6 +53,10 @@ func formatRequest(r *http.Request) string {
 
 /////////////////
 
+type CmdError struct {
+     Error string `json:"error"`
+     Statuscode int `json:"statuscode"`
+}
 
 func CheckSharedSecret(logger *zap.Logger, secret string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -75,10 +79,13 @@ func CheckNothing(logger *zap.Logger, handler http.Handler) http.Handler {
 }
 
 
-func CheckHostAllowed(origin string, allowFrom string) bool {
+func CheckHostAllowed(origin string, allowFrom string, logger *zap.Logger) bool {
      
+
      // TODO: case insensitive
      matched,_ := regexp.MatchString(allowFrom,origin)
+
+     logger.Info(fmt.Sprintf("***** Checking Allowed Host:  %s matches %s => %s",origin,allowFrom,matched))
 
      return matched
 
@@ -127,7 +134,7 @@ func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer str
 		referer_url := url.URL{Scheme:referer.Scheme, Host:referer.Host}
 		referer_host := referer_url.String(); // format the allowed host including the scheme
 
-		if !CheckHostAllowed(referer_host, allowFrom) {
+		if !CheckHostAllowed(referer_host, allowFrom, logger) {
 		       logger.Error(fmt.Sprintf("Referer host '%s' does not match allowFrom pattern '%s'",referer.Host,allowFrom))
 		       w.WriteHeader(http.StatusBadRequest)
 		       return
@@ -220,7 +227,7 @@ func CORSProcessOriginHeader(logger *zap.Logger, w http.ResponseWriter, r *http.
 	x := url.URL{Scheme:origin.Scheme, Host:origin.Host}
 	origin_url := x.String(); // format the allowed host including the scheme
 
-	if !CheckHostAllowed(origin_url, allowFrom) {
+	if !CheckHostAllowed(origin_url, allowFrom, logger) {
 	       logger.Error(fmt.Sprintf("Origin URL '%s' does not match allowFrom pattern '%s'",origin.Host,allowFrom))
 	       w.WriteHeader(http.StatusBadRequest)
 	       return false
@@ -283,6 +290,81 @@ func executeCMD(cmd *exec.Cmd) (*bytes.Buffer,*bytes.Buffer, error) {
      return outBuf, errBuf, err
 }
 
+func CloneShare(logger *zap.Logger, allowFrom string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	        
+		if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
+	   	  return 
+		}
+
+		v := r.Context().Value("username")
+		username, _ := v.(string)
+
+		logger.Info("loggedin user is " + username)
+
+		sharer := ""
+		shared_project := ""
+		cloned_project := ""
+
+		m, err := url.ParseQuery(r.URL.RawQuery)
+
+		if err != nil {
+		    logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+		    
+		if val,ok := m["sharer"]; ok {
+		   sharer = val[0]
+		} else {
+		    logger.Error(fmt.Sprintf("URL missing query parameter: sharer not specified"))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+
+		if val,ok := m["project"]; ok {
+		   shared_project = val[0]
+		} else {
+		    logger.Error(fmt.Sprintf("URL missing query parameter: project to clone not specified"))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+
+		if val,ok := m["destination"]; ok {
+		   cloned_project = val[0]
+		} else {
+		    logger.Error(fmt.Sprintf("URL missing query parameter: new name of the cloned project not specified"))
+		    w.WriteHeader(http.StatusBadRequest)
+		    return
+		}
+ 
+		args := []string{"-c","/root/kuba-config.php","--json","clone-share",sharer,shared_project,username,cloned_project}
+
+		logger.Info(fmt.Sprintf("cmd args %s",args))
+
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project",args...)
+
+		jsonResponse, errBuf, err := executeCMD(cmd)
+
+		if err != nil {
+
+		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'",cmd.Path,cmd.Args,err,errBuf.String()))
+		
+		cmderr := CmdError{Statuscode : http.StatusInternalServerError}
+		json.Unmarshal(jsonResponse.Bytes(), &cmderr)
+
+		// TODO: inject error string if applicable
+		w.WriteHeader(cmderr.Statuscode)
+		//return
+		}
+
+		w.Write(jsonResponse.Bytes())
+
+
+})
+}
+
+
 func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	        
@@ -313,11 +395,11 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 		    return
 		}
  
-		args := []string{"-c","/root/kuba-config.php","--json","swan-delete-project-share",username,project}
+		args := []string{"-c","/root/kuba-config.php","--json","delete-share",username,project}
 
 		logger.Info(fmt.Sprintf("cmd args %s",args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project",args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
@@ -325,8 +407,11 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'",cmd.Path,cmd.Args,err,errBuf.String()))
 		
+		cmderr := CmdError{Statuscode : http.StatusInternalServerError}
+		json.Unmarshal(jsonResponse.Bytes(), &cmderr)
+
 		// TODO: inject error string if applicable
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(cmderr.Statuscode)
 		return
 		}
 
@@ -366,7 +451,7 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 		    return
 		}
  
-		args := []string{"-c","/root/kuba-config.php","--json","swan-update-project-share",username,project}
+		args := []string{"-c","/root/kuba-config.php","--json","update-share",username,project}
 
 		type Sharee struct {
 		     Name string   `json:"name"` // name of user or group
@@ -385,6 +470,15 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 		   return
 		   }
 
+	        // TODO: BadRequest if empty ShareWith array
+
+		if len(share_request.ShareWith) == 0 {
+		   logger.Error(fmt.Sprintf("Empty request"))
+		   w.WriteHeader(http.StatusBadRequest)
+		   return		   
+		}
+
+
 		logger.Info(fmt.Sprintf("request %s",share_request))
 
 		for i := range share_request.ShareWith {
@@ -396,7 +490,7 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		logger.Info(fmt.Sprintf("cmd args %s",args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project",args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
@@ -404,8 +498,11 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'",cmd.Path,cmd.Args,err,errBuf.String()))
 		
+		cmderr := CmdError{Statuscode : http.StatusInternalServerError}
+		json.Unmarshal(jsonResponse.Bytes(), &cmderr)
+
 		// TODO: inject error string if applicable
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(cmderr.Statuscode)
 		return
 		}
 
@@ -470,16 +567,19 @@ func Shared(logger *zap.Logger, allowFrom string, action string, requireProject 
 
 		logger.Info(fmt.Sprintf("cmd args %s",args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project",args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
 		if err != nil {
 
 		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s' ",cmd.Path,cmd.Args,err,errBuf.String()))
-		
-		/* TODO: inject error string if applicable */
-		w.WriteHeader(http.StatusInternalServerError)
+
+		cmderr := CmdError{Statuscode : http.StatusInternalServerError}
+		json.Unmarshal(jsonResponse.Bytes(), &cmderr)
+
+		// TODO: inject error string if applicable
+		w.WriteHeader(cmderr.Statuscode)
 		return
 		}
 

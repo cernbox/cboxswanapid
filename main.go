@@ -57,11 +57,13 @@ func main() {
 	//tokenHandler := handlers.CheckSharedSecret(logger, fSecret, handlers.Token(logger, fSignKey))
 	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, fSignKey, fAllowFrom, fShibReferer))
 
-	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"swan-list-projects-shared-with",false))
-	sharingHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"swan-list-projects-shared-by",false))
-	getIndividualShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"swan-list-projects-shared-by",true))
+	sharedHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"list-shared-with",false))
+	sharingHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"list-shared-by",false))
+	getIndividualShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.Shared(logger,fAllowFrom,"list-shared-by",true))
 	updateShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.UpdateShare(logger,fAllowFrom))
 	deleteShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.DeleteShare(logger,fAllowFrom))
+
+	cloneShareHandler := handlers.CheckJWTToken(logger, fSignKey, handlers.CloneShare(logger,fAllowFrom))
 
 	notFoundHandler :=  handlers.CheckJWTToken(logger, fSignKey, handlers.Handle404(logger))
 
@@ -76,6 +78,11 @@ func main() {
 
 	router.Handle("/swanapi/v1/shared", handlers.Options(logger,[]string{"GET"},fAllowFrom)).Methods("OPTIONS")
 	router.Handle("/swanapi/v1/sharing", handlers.Options(logger,[]string{"GET"},fAllowFrom)).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/share", handlers.Options(logger,[]string{"GET","PUT","DELETE"},fAllowFrom)).Methods("OPTIONS")
+
+	router.Handle("/swanapi/v1/clone", cloneShareHandler).Methods("POST")
+	router.Handle("/swanapi/v1/clone", handlers.Options(logger,[]string{"POST"},fAllowFrom)).Methods("OPTIONS")
+
 
 	out := getHTTPLoggerOut(fHTTPLog)
 	loggedRouter := gh.LoggingHandler(out, router)
