@@ -194,9 +194,11 @@ Clone a project to the local CERNBox of the authenticated user.
 
 Query Params
 
+```
 project: path of the project ("SWAN_projects/Project 1")
 sharer: name of the user who shared the project
 destination: new name of the project ("SWAN_projects/Project 3/")
+```
 
 Response Examples
 
