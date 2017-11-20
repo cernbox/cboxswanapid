@@ -188,7 +188,7 @@ Response Examples
 {"error":"message"}
 ```
 
-### GET /clone
+### POST /clone
 
 Clone a project to the local CERNBox of the authenticated user.
 
