@@ -412,7 +412,7 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		// TODO: inject error string if applicable
 		w.WriteHeader(cmderr.Statuscode)
-		return
+		//return
 		}
 
 		w.Write(jsonResponse.Bytes())
@@ -503,7 +503,7 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		// TODO: inject error string if applicable
 		w.WriteHeader(cmderr.Statuscode)
-		return
+		//return
 		}
 
 		w.Write(jsonResponse.Bytes())
@@ -580,7 +580,7 @@ func Shared(logger *zap.Logger, allowFrom string, action string, requireProject 
 
 		// TODO: inject error string if applicable
 		w.WriteHeader(cmderr.Statuscode)
-		return
+		//return
 		}
 
 		w.Write(jsonResponse.Bytes())
