@@ -1,19 +1,20 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
-//	"github.com/gorilla/mux"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
-        "net/url"
+	"net/url"
+	"os/exec"
+	"regexp"
 	"strings"
 	"time"
-	"regexp"
-	"fmt"
-	"os/exec"
-	"bytes"
 )
 
 /////////////////
@@ -21,38 +22,36 @@ import (
 /////////////////
 // formatRequest generates ascii representation of a request
 func formatRequest(r *http.Request) string {
- // Create return string
- var request []string
+	// Create return string
+	var request []string
 
- // Add the request string
- url := fmt.Sprintf("%v %v %v", r.Method, r.URL, r.Proto)
- request = append(request, url)
+	// Add the request string
+	url := fmt.Sprintf("%v %v %v", r.Method, r.URL, r.Proto)
+	request = append(request, url)
 
- // Add the host
- request = append(request, fmt.Sprintf("Host: %v", r.Host))
+	// Add the host
+	request = append(request, fmt.Sprintf("Host: %v", r.Host))
 
- // Loop through headers
- for name, headers := range r.Header {
-   name = strings.ToLower(name)
-   for _, h := range headers {
-     request = append(request, fmt.Sprintf("%v: %v", name, h))
-   }
- }
- 
- // If this is a POST, add post data
- if r.Method == "POST" {
-    r.ParseForm()
-    request = append(request, "\n")
-    request = append(request, r.Form.Encode())
- } 
+	// Loop through headers
+	for name, headers := range r.Header {
+		name = strings.ToLower(name)
+		for _, h := range headers {
+			request = append(request, fmt.Sprintf("%v: %v", name, h))
+		}
+	}
 
-  // Return the request as a string
-  return strings.Join(request, "\n")
+	// If this is a POST, add post data
+	if r.Method == "POST" {
+		r.ParseForm()
+		request = append(request, "\n")
+		request = append(request, r.Form.Encode())
+	}
+
+	// Return the request as a string
+	return strings.Join(request, "\n")
 }
 
-
 /////////////////
-
 
 func CheckSharedSecret(logger *zap.Logger, secret string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -70,24 +69,23 @@ func CheckSharedSecret(logger *zap.Logger, secret string, handler http.Handler) 
 
 func CheckNothing(logger *zap.Logger, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	handler.ServeHTTP(w, r)
+		handler.ServeHTTP(w, r)
 	})
 }
 
-
 func CheckHostAllowed(origin string, allowFrom string) bool {
-     
-     // TODO: case insensitive
-     matched,_ := regexp.MatchString(allowFrom,origin)
 
-     return matched
+	// TODO: case insensitive
+	matched, _ := regexp.MatchString(allowFrom, origin)
+
+	return matched
 
 }
 
 func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-	        logger.Info(formatRequest(r))
+		logger.Info(formatRequest(r))
 
 		username := r.Header.Get("adfs_login") // this comes back from shibolleth (the name of the header depends on shibd configuration)
 
@@ -97,16 +95,16 @@ func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer str
 			return
 		}
 
-		referer,err := url.Parse(r.Header.Get("Referer"))
+		referer, err := url.Parse(r.Header.Get("Referer"))
 
 		if err != nil {
-		   logger.Error(fmt.Sprintf("Error parsing Referer header: '%s' %s",r.Header.Get("Referer"), err))
-		   w.WriteHeader(http.StatusBadRequest)
-		   return
+			logger.Error(fmt.Sprintf("Error parsing Referer header: '%s' %s", r.Header.Get("Referer"), err))
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
-		referer_url := url.URL{Scheme:referer.Scheme, Host:referer.Host}
-		referer_host := referer_url.String(); // format the allowed host including the scheme
+		referer_url := url.URL{Scheme: referer.Scheme, Host: referer.Host}
+		referer_host := referer_url.String() // format the allowed host including the scheme
 
 		if referer_host == shibReferer {
 			w.WriteHeader(http.StatusNoContent)
@@ -114,29 +112,29 @@ func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer str
 		}
 
 		if !CheckHostAllowed(referer_host, allowFrom) {
-		       logger.Error(fmt.Sprintf("Referer host '%s' does not match allowFrom pattern '%s'",referer.Host,allowFrom))
-		       w.WriteHeader(http.StatusBadRequest)
-		       return
-		       }
+			logger.Error(fmt.Sprintf("Referer host '%s' does not match allowFrom pattern '%s'", referer.Host, allowFrom))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
 		//logger.Info(fmt.Sprintf("***** ALLOWED_HOST: %s",referer_host))
 
-		expire := time.Now().Add(time.Duration(3600)*time.Second) // TODO(labkode): expire data in config
+		expire := time.Now().Add(time.Duration(3600) * time.Second) // TODO(labkode): expire data in config
 
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
 		claims := token.Claims.(jwt.MapClaims)
 		claims["username"] = username
-		claims["exp"] = expire.UnixNano() 
+		claims["exp"] = expire.UnixNano()
 		tokenString, _ := token.SignedString([]byte(signKey))
 
 		response := &struct {
-			Token string `json:"authtoken"`
+			Token  string    `json:"authtoken"`
 			Expire time.Time `json:"expire"`
 		}{Token: tokenString, Expire: expire}
 
 		jsonBody, _ := json.Marshal(response)
 
-		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s",referer_host))
+		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s", referer_host))
 		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", '" + referer_host + "');</script>"))
 		w.WriteHeader(http.StatusOK)
 	})
@@ -180,100 +178,115 @@ func CheckJWTToken(logger *zap.Logger, signKey string, handler http.Handler) htt
 
 func Handle404(logger *zap.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	          w.WriteHeader(http.StatusNotFound)
-	  })
-     }
-
+		w.WriteHeader(http.StatusNotFound)
+	})
+}
 
 func Handle200(logger *zap.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	          logger.Info(formatRequest(r))
-	          //w.WriteHeader(http.Success)
-	  })
-     }
+		logger.Info(formatRequest(r))
+		//w.WriteHeader(http.Success)
+	})
+}
 
 // Handle CORS Origin header and return true if the request is allowed to continue
 func CORSProcessOriginHeader(logger *zap.Logger, w http.ResponseWriter, r *http.Request, allowFrom string) bool {
 
-     	origin,err := url.Parse(r.Header.Get("Origin"))
+	origin, err := url.Parse(r.Header.Get("Origin"))
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error parsing Origin header: '%s' %s",r.Header.Get("Origin"), err))
-		 w.WriteHeader(http.StatusBadRequest)
-		 return false
+		logger.Error(fmt.Sprintf("Error parsing Origin header: '%s' %s", r.Header.Get("Origin"), err))
+		w.WriteHeader(http.StatusBadRequest)
+		return false
 	}
 
-	x := url.URL{Scheme:origin.Scheme, Host:origin.Host}
-	origin_url := x.String(); // format the allowed host including the scheme
+	x := url.URL{Scheme: origin.Scheme, Host: origin.Host}
+	origin_url := x.String() // format the allowed host including the scheme
 
 	if !CheckHostAllowed(origin_url, allowFrom) {
-	       logger.Error(fmt.Sprintf("Origin URL '%s' does not match allowFrom pattern '%s'",origin.Host,allowFrom))
-	       w.WriteHeader(http.StatusBadRequest)
-	       return false
-	       }
+		logger.Error(fmt.Sprintf("Origin URL '%s' does not match allowFrom pattern '%s'", origin.Host, allowFrom))
+		w.WriteHeader(http.StatusBadRequest)
+		return false
+	}
 
-	w.Header().Set("Access-Control-Allow-Origin",origin_url)
+	w.Header().Set("Access-Control-Allow-Origin", origin_url)
 	return true
 }
 
-
 func stringInSlice(str string, list []string) bool {
- 	for _, v := range list {
- 		if v == str {
- 			return true
- 		}
- 	}
- 	return false
- }
+	for _, v := range list {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}
 
-
-func Options(logger *zap.Logger, allowedMethods []string, allowFrom string ) http.Handler {
+func Options(logger *zap.Logger, allowedMethods []string, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-	if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
-	   return 
-	}
+		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
+			return
+		}
 
-	x := r.Header.Get("Access-Control-Request-Headers")
+		x := r.Header.Get("Access-Control-Request-Headers")
 
-	if strings.ToUpper(x) != "AUTHORIZATION" {
-	       logger.Error(fmt.Sprintf("OPTIONS: Wrong or missing Access-Control-Request-Headers header: '%s'",x))
-	       w.WriteHeader(http.StatusBadRequest)
-	       return
-	}
+		if strings.ToUpper(x) != "AUTHORIZATION" {
+			logger.Error(fmt.Sprintf("OPTIONS: Wrong or missing Access-Control-Request-Headers header: '%s'", x))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-	x = r.Header.Get("Access-Control-Request-Method")
+		x = r.Header.Get("Access-Control-Request-Method")
 
-	if ! stringInSlice(strings.ToUpper(x),allowedMethods) {
-	       logger.Error(fmt.Sprintf("OPTIONS: Wrong or missing Access-Control-Request-Method header: '%' ",x))
-	       w.WriteHeader(http.StatusBadRequest)
-	       return
-	}
+		if !stringInSlice(strings.ToUpper(x), allowedMethods) {
+			logger.Error(fmt.Sprintf("OPTIONS: Wrong or missing Access-Control-Request-Method header: '%' ", x))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-	w.Header().Set("Access-Control-Allow-Methods",strings.Join(allowedMethods,","))
-	w.Header().Set("Access-Control-Allow-Headers","Authorization")
+		w.Header().Set("Access-Control-Allow-Methods", strings.Join(allowedMethods, ","))
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization")
 
-})
+	})
 }
 
 /* ------------------------ */
 
-func executeCMD(cmd *exec.Cmd) (*bytes.Buffer,*bytes.Buffer, error) {
+func executeCMD(cmd *exec.Cmd) (*bytes.Buffer, *bytes.Buffer, error) {
 
-     outBuf := &bytes.Buffer{}
-     errBuf := &bytes.Buffer{}
-     cmd.Stdout = outBuf
-     cmd.Stderr = errBuf
-     err := cmd.Run()
+	outBuf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	cmd.Stdout = outBuf
+	cmd.Stderr = errBuf
+	err := cmd.Run()
 
-     return outBuf, errBuf, err
+	return outBuf, errBuf, err
+}
+
+func Search(logger *zap.Logger, cboxgroupdUrl, cboxgroupdSecret string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		filter := mux.Vars(r)["filter"]
+		url := strings.Join([]string{cboxgroupdUrl, filter}, "/")
+		req, err := http.NewRequest("GET", url, nil)
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", cboxgroupdSecret))
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logger.Error(fmt.Sprintf("error sending request: %s", err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(res.StatusCode)
+		defer res.Body.Close()
+		io.Copy(w, res.Body)
+	})
 }
 
 func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	        
-		if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
-	   	  return 
+
+		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
+			return
 		}
 
 		v := r.Context().Value("username")
@@ -286,47 +299,46 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 		m, err := url.ParseQuery(r.URL.RawQuery)
 
 		if err != nil {
-		    logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
-		    w.WriteHeader(http.StatusBadRequest)
-		    return
+			logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ", err))
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-		    
-		if val,ok := m["project"]; ok {
-		   project = val[0]
+
+		if val, ok := m["project"]; ok {
+			project = val[0]
 		} else {
-		    logger.Error(fmt.Sprintf("URL missing query parameter: project not specified"))
-		    w.WriteHeader(http.StatusBadRequest)
-		    return
+			logger.Error(fmt.Sprintf("URL missing query parameter: project not specified"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
- 
-		args := []string{"-c","/root/kuba-config.php","--json","swan-delete-project-share",username,project}
 
-		logger.Info(fmt.Sprintf("cmd args %s",args))
+		args := []string{"-c", "/root/kuba-config.php", "--json", "swan-delete-project-share", username, project}
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+		logger.Info(fmt.Sprintf("cmd args %s", args))
+
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share", args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
 		if err != nil {
 
-		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'",cmd.Path,cmd.Args,err,errBuf.String()))
-		
-		// TODO: inject error string if applicable
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+			logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'", cmd.Path, cmd.Args, err, errBuf.String()))
+
+			// TODO: inject error string if applicable
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		w.Write(jsonResponse.Bytes())
 
-
-})
+	})
 }
 
 func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	        
-		if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
-	   	  return 
+
+		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
+			return
 		}
 
 		v := r.Context().Value("username")
@@ -339,74 +351,72 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 		m, err := url.ParseQuery(r.URL.RawQuery)
 
 		if err != nil {
-		    logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
-		    w.WriteHeader(http.StatusBadRequest)
-		    return
+			logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ", err))
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-		    
-		if val,ok := m["project"]; ok {
-		   project = val[0]
+
+		if val, ok := m["project"]; ok {
+			project = val[0]
 		} else {
-		    logger.Error(fmt.Sprintf("URL missing query parameter: project not specified"))
-		    w.WriteHeader(http.StatusBadRequest)
-		    return
+			logger.Error(fmt.Sprintf("URL missing query parameter: project not specified"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
- 
-		args := []string{"-c","/root/kuba-config.php","--json","swan-update-project-share",username,project}
+
+		args := []string{"-c", "/root/kuba-config.php", "--json", "swan-update-project-share", username, project}
 
 		type Sharee struct {
-		     Name string   `json:"name"` // name of user or group
-		     Entity string `json:"entity"` // "u" is user, "egroup" is group
+			Name   string `json:"name"`   // name of user or group
+			Entity string `json:"entity"` // "u" is user, "egroup" is group
 		}
 
 		type ShareRequest struct {
-		     ShareWith []Sharee `json:"share_with"`
+			ShareWith []Sharee `json:"share_with"`
 		}
 
 		var share_request ShareRequest
 
-		if err = json.NewDecoder(r.Body).Decode(&share_request) ; err != nil {
-		   logger.Error(fmt.Sprintf("Cannot unmarshal JSON request body"))
-		   w.WriteHeader(http.StatusBadRequest)
-		   return
-		   }
-
-		logger.Info(fmt.Sprintf("request %s",share_request))
-
-		for i := range share_request.ShareWith {
-		  // FIXME: TODO: sanitize names
-		  // FIXME: TODO: check for missing fields, e.g. empty name or empty entity
-		  share := share_request.ShareWith[i]
-		  args = append(args,share.Entity + ":" + share.Name)
+		if err = json.NewDecoder(r.Body).Decode(&share_request); err != nil {
+			logger.Error(fmt.Sprintf("Cannot unmarshal JSON request body"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
-		logger.Info(fmt.Sprintf("cmd args %s",args))
+		logger.Info(fmt.Sprintf("request %s", share_request))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+		for i := range share_request.ShareWith {
+			// FIXME: TODO: sanitize names
+			// FIXME: TODO: check for missing fields, e.g. empty name or empty entity
+			share := share_request.ShareWith[i]
+			args = append(args, share.Entity+":"+share.Name)
+		}
+
+		logger.Info(fmt.Sprintf("cmd args %s", args))
+
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share", args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
 		if err != nil {
 
-		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'",cmd.Path,cmd.Args,err,errBuf.String()))
-		
-		// TODO: inject error string if applicable
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+			logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s'", cmd.Path, cmd.Args, err, errBuf.String()))
+
+			// TODO: inject error string if applicable
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		w.Write(jsonResponse.Bytes())
 
-}) }
-
-
+	})
+}
 
 func Shared(logger *zap.Logger, allowFrom string, action string, requireProject bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-	        
-		if !CORSProcessOriginHeader(logger,w,r,allowFrom) { 
-	   	  return 
+		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
+			return
 		}
 
 		v := r.Context().Value("username")
@@ -418,21 +428,21 @@ func Shared(logger *zap.Logger, allowFrom string, action string, requireProject 
 
 		if requireProject {
 
-		    m, err := url.ParseQuery(r.URL.RawQuery)
+			m, err := url.ParseQuery(r.URL.RawQuery)
 
-		    if err != nil {
-		       logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ",err))
-		       w.WriteHeader(http.StatusBadRequest)
-		       return
-		    }
-		    
-		    if val,ok := m["project"]; ok {
-		      project = val[0]
-		    } else {
-		       logger.Error(fmt.Sprintf("URL missing query parameter: project not specified "))
-		       w.WriteHeader(http.StatusBadRequest)
-		       return
-		    }
+			if err != nil {
+				logger.Error(fmt.Sprintf("URL query parsing error: %s '%s' ", err))
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			if val, ok := m["project"]; ok {
+				project = val[0]
+			} else {
+				logger.Error(fmt.Sprintf("URL missing query parameter: project not specified "))
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 
 		type shareInfo struct {
@@ -446,30 +456,29 @@ func Shared(logger *zap.Logger, allowFrom string, action string, requireProject 
 			Shared []*shareInfo `json:"shared"`
 		}
 
-		args := []string{"-c","/root/kuba-config.php","--json",action}
+		args := []string{"-c", "/root/kuba-config.php", "--json", action}
 
 		if project != "" {
-		   args = append(args,"--project",project)
+			args = append(args, "--project", project)
 		}
 
-		args = append(args,username)
+		args = append(args, username)
 
-		logger.Info(fmt.Sprintf("cmd args %s",args))
+		logger.Info(fmt.Sprintf("cmd args %s", args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share",args...)
+		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-share", args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
 		if err != nil {
 
-		logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s' ",cmd.Path,cmd.Args,err,errBuf.String()))
-		
-		/* TODO: inject error string if applicable */
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+			logger.Error(fmt.Sprintf("Error calling cmd %s %s %s: '%s' ", cmd.Path, cmd.Args, err, errBuf.String()))
+
+			/* TODO: inject error string if applicable */
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		w.Write(jsonResponse.Bytes())
 	})
 }
-
