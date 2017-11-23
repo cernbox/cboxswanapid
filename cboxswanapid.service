@@ -1,0 +1,16 @@
+[Unit]
+Description=SWANAPID daemon for CERNBox
+After=syslog.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/var/log/cboxswanapid
+ExecStart=/usr/local/bin/cboxswanapid
+StandardOutput=null
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target
+

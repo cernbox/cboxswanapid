@@ -1,0 +1,4 @@
+port: 2003
+cboxgroupdsecret: "change me!!!"
+httplog: /var/log/cboxgroupd/cboxgroupd_http.log
+applog: /var/log/cboxgroupd/cboxgroupd_app.log

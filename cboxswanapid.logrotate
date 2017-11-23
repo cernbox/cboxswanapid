@@ -1,0 +1,19 @@
+/var/log/cboxswanapid/cboxswanapid_http.log {
+    daily
+    rotate 365
+    copytruncate
+    delaycompress
+    compress
+    notifempty
+    missingok
+}
+
+/var/log/cboxswanapid/cboxswanapid_app.log {
+    daily
+    rotate 365
+    copytruncate
+    delaycompress
+    compress
+    notifempty
+    missingok
+}
