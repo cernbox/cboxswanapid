@@ -85,7 +85,7 @@ func main() {
 	getIndividualShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "swan-list-projects-shared-by", true))
 	updateShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.UpdateShare(logger, viper.GetString("allowfrom")))
 	deleteShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.DeleteShare(logger, viper.GetString("allowfrom")))
-	searchHandler := handlers.Search(logger, viper.GetString("cboxgroupdurl"), viper.GetString("cboxgroupdsecret"))
+	searchHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Search(logger, viper.GetString("cboxgroupdurl"), viper.GetString("cboxgroupdsecret")))
 
 	notFoundHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Handle404(logger))
 
