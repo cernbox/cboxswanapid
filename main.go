@@ -86,7 +86,7 @@ func main() {
 	updateShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.UpdateShare(logger, viper.GetString("allowfrom")))
 	deleteShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.DeleteShare(logger, viper.GetString("allowfrom")))
 	searchHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Search(logger, viper.GetString("cboxgroupdurl"), viper.GetString("cboxgroupdsecret")))
-
+	cloneShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.CloneShare(logger, viper.GetString("allowfrom")))
 	notFoundHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Handle404(logger))
 
 	router.NotFoundHandler = notFoundHandler // default protection for non-existing resources is JWT
@@ -101,6 +101,10 @@ func main() {
 
 	router.Handle("/swanapi/v1/shared", handlers.Options(logger, []string{"GET"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
 	router.Handle("/swanapi/v1/sharing", handlers.Options(logger, []string{"GET"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/share", handlers.Options(logger, []string{"GET", "PUT", "DELETE"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
+
+	router.Handle("/swanapi/v1/clone", cloneShareHandler).Methods("POST")
+	router.Handle("/swanapi/v1/clone", handlers.Options(logger, []string{"POST"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
 
 	out := getHTTPLoggerOut(viper.GetString("httplog"))
 	loggedRouter := gh.LoggingHandler(out, router)
