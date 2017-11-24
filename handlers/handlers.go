@@ -79,11 +79,15 @@ func CheckNothing(logger *zap.Logger, handler http.Handler) http.Handler {
 }
 
 
-func CheckHostAllowed(origin string, allowFrom string, logger *zap.Logger) bool {
+func CheckHostAllowed(origin url.URL, allowFrom string, logger *zap.Logger) bool {
      
+     if origin.Scheme != "https" {
+          logger.Info(fmt.Sprintf("***** Only https scheme is supported. Origin is %s",origin))
+	  return false
+     }
 
      // TODO: case insensitive
-     matched,_ := regexp.MatchString(allowFrom,origin)
+     matched,_ := regexp.MatchString(allowFrom,origin.Host)
 
      logger.Info(fmt.Sprintf("***** Checking Allowed Host:  %s matches %s => %s",origin,allowFrom,matched))
 
@@ -134,7 +138,7 @@ func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer str
 		referer_url := url.URL{Scheme:referer.Scheme, Host:referer.Host}
 		referer_host := referer_url.String(); // format the allowed host including the scheme
 
-		if !CheckHostAllowed(referer_host, allowFrom, logger) {
+		if !CheckHostAllowed(*referer, allowFrom, logger) {
 		       logger.Error(fmt.Sprintf("Referer host '%s' does not match allowFrom pattern '%s'",referer.Host,allowFrom))
 		       w.WriteHeader(http.StatusBadRequest)
 		       return
@@ -224,16 +228,13 @@ func CORSProcessOriginHeader(logger *zap.Logger, w http.ResponseWriter, r *http.
 		 return false
 	}
 
-	x := url.URL{Scheme:origin.Scheme, Host:origin.Host}
-	origin_url := x.String(); // format the allowed host including the scheme
-
-	if !CheckHostAllowed(origin_url, allowFrom, logger) {
-	       logger.Error(fmt.Sprintf("Origin URL '%s' does not match allowFrom pattern '%s'",origin.Host,allowFrom))
+	if !CheckHostAllowed(*origin, allowFrom, logger) {
+	       logger.Error(fmt.Sprintf("Origin URL '%s' does not match allowFrom pattern '%s'",origin,allowFrom))
 	       w.WriteHeader(http.StatusBadRequest)
 	       return false
 	       }
 
-	w.Header().Set("Access-Control-Allow-Origin",origin_url)
+	w.Header().Set("Access-Control-Allow-Origin",origin.String())
 	return true
 }
 
