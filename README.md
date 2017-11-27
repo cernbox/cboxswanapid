@@ -213,16 +213,60 @@ Response Examples
 
 ## User API
 
-### GET /user
+### GET /search/{filter}
 
 Searches the server's contact directory. Used in autocomplete.
+The account_type key can have the following values: primary, secondary, service, egroup and unixgroup.
 
-Query Params
+Path Params
 
-search: name to search for 
+filter: name to search for. If name is prefixed by *a*: the result will also include service and secondary accounts.
+If the prefix g: is used, only unix groups will be shown.
 
 Response Examples
 
-(the same as CERNBox result)
+
+```
+200
+
+[
+    {
+        "account_type": "primary",
+        "cn": "casallab",
+        "display_name": "Jorge Casal Labrador",
+        "dn": "CN=casallab,OU=Users,OU=Organic Units,DC=cern,DC=ch",
+        "mail": "jorge.casal.labrador@cern.ch"
+    },
+    {
+        "account_type": "primary",
+        "cn": "gonzalhu",
+        "display_name": "Hugo Gonzalez Labrador",
+        "dn": "CN=gonzalhu,OU=Users,OU=Organic Units,DC=cern,DC=ch",
+        "mail": "hugo.gonzalez.labrador@cern.ch"
+    },
+    {
+        "account_type": "egroup",
+        "cn": "cernbox-project-labradorprojecttest-writers",
+        "display_name": "cernbox-project-labradorprojecttest-writers (CERNBOX PROJECT LABRADORPROJECTTEST WRITERS)",
+        "dn": "CN=cernbox-project-labradorprojecttest-writers,OU=e-groups,OU=Workgroups,DC=cern,DC=ch",
+        "mail": "cernbox-project-labradorprojecttest-writers@cern.ch"
+    },
+    {
+        "account_type": "egroup",
+        "cn": "cernbox-project-labradorprojecttest-readers",
+        "display_name": "cernbox-project-labradorprojecttest-readers (CERNBOX PROJECT LABRADORPROJECTTEST READERS)",
+        "dn": "CN=cernbox-project-labradorprojecttest-readers,OU=e-groups,OU=Workgroups,DC=cern,DC=ch",
+        "mail": "cernbox-project-labradorprojecttest-readers@cern.ch"
+    },
+    {
+        "account_type": "egroup",
+        "cn": "cernbox-project-labradorprojecttest-admins",
+        "display_name": "cernbox-project-labradorprojecttest-admins (CERNBOX PROJECT LABRADORPROJECTTEST ADMINS)",
+        "dn": "CN=cernbox-project-labradorprojecttest-admins,OU=e-groups,OU=Workgroups,DC=cern,DC=ch",
+        "mail": "cernbox-project-labradorprojecttest-admins@cern.ch"
+    }
+]
+
+```
 
 
