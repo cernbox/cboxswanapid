@@ -80,9 +80,9 @@ func main() {
 
 	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, viper.GetString("signkey"), viper.GetString("allowfrom"), viper.GetString("shibreferer")))
 
-	sharedHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "swan-list-projects-shared-with", false))
-	sharingHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "swan-list-projects-shared-by", false))
-	getIndividualShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "swan-list-projects-shared-by", true))
+	sharedHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "list-shared-with", false))
+	sharingHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "list-shared-by", false))
+	getIndividualShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "list-shared-by", true))
 	updateShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.UpdateShare(logger, viper.GetString("allowfrom")))
 	deleteShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.DeleteShare(logger, viper.GetString("allowfrom")))
 	searchHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Search(logger, viper.GetString("cboxgroupdurl"), viper.GetString("cboxgroupdsecret")))

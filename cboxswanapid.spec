@@ -4,7 +4,7 @@
 
 Name: cboxswanapid
 Summary: A server that allows SWAN to share with users and groups.
-Version: 1.0.2
+Version: 1.0.3
 Release: 1%{?dist}
 License: AGPLv3
 BuildRoot: %{_tmppath}/%{name}-buildroot
@@ -53,6 +53,8 @@ rm -rf %buildroot/
 
 
 %changelog
+* Thu Nov 27 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.0.3
+- Use actions without swan prefixes
 * Thu Nov 27 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.0.2
 - Use gorilla/context instead of native context package as it breaks path params
 * Thu Nov 23 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.0.0
