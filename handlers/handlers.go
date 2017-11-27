@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"bytes"
-	"context"
+	"github.com/gorilla/context"
 	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
@@ -199,9 +199,8 @@ func CheckJWTToken(logger *zap.Logger, signKey string, handler http.Handler) htt
 			return
 		}
 
-		ctx := context.WithValue(context.Background(), "username", username)
-		r = r.WithContext(ctx)
-
+		context.Set(r, "username", username)
+		fmt.Println(r.URL)
 		handler.ServeHTTP(w, r)
 	})
 }
@@ -295,6 +294,8 @@ func executeCMD(cmd *exec.Cmd) (*bytes.Buffer, *bytes.Buffer, error) {
 func Search(logger *zap.Logger, cboxgroupdUrl, cboxgroupdSecret string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		filter := mux.Vars(r)["filter"]
+		fmt.Printf("filter:%s\n", filter)
+
 		url := strings.Join([]string{cboxgroupdUrl, filter}, "/")
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", cboxgroupdSecret))
@@ -317,7 +318,7 @@ func CloneShare(logger *zap.Logger, allowFrom string) http.Handler {
 			return
 		}
 
-		v := r.Context().Value("username")
+		v := context.Get(r, "username")
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)
@@ -390,7 +391,7 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 			return
 		}
 
-		v := r.Context().Value("username")
+		v := context.Get(r,"username")
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)
@@ -445,7 +446,7 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 			return
 		}
 
-		v := r.Context().Value("username")
+		v := context.Get(r,"username")
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)
@@ -534,7 +535,7 @@ func Shared(logger *zap.Logger, allowFrom string, action string, requireProject 
 			return
 		}
 
-		v := r.Context().Value("username")
+		v := context.Get(r,"username")
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/cernbox/cboxswanapid/handlers"
+	"github.com/gorilla/context"
 	gh "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
