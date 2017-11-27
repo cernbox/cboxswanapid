@@ -50,6 +50,7 @@ rm -rf %buildroot/
 /var/log/cboxswanapid
 /usr/lib/systemd/system/cboxswanapid.service
 /usr/local/bin/*
+%config(noreplace) /etc/cboxswanapid/cboxswanapid.yaml
 
 
 %changelog
