@@ -213,12 +213,12 @@ Response Examples
 
 ## User API
 
-### GET /search/{filter}
+### GET /search?filter=<filter>
 
 Searches the server's contact directory. Used in autocomplete.
 The account_type key can have the following values: primary, secondary, service, egroup and unixgroup.
 
-Path Params
+Query Params
 
 filter: name to search for. If name is prefixed by *a*: the result will also include service and secondary accounts.
 If the prefix g: is used, only unix groups will be shown.
