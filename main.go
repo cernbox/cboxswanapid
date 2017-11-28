@@ -97,7 +97,7 @@ func main() {
 	router.Handle("/swanapi/v1/share", getIndividualShareHandler).Methods("GET")
 	router.Handle("/swanapi/v1/share", updateShareHandler).Methods("PUT")
 	router.Handle("/swanapi/v1/share", deleteShareHandler).Methods("DELETE")
-	router.Handle("/swanapi/v1/search/{filter}", searchHandler).Methods("GET")
+	router.Handle("/swanapi/v1/search", searchHandler).Methods("GET")
 
 	router.Handle("/swanapi/v1/shared", handlers.Options(logger, []string{"GET"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
 	router.Handle("/swanapi/v1/sharing", handlers.Options(logger, []string{"GET"}, viper.GetString("allowfrom"))).Methods("OPTIONS")

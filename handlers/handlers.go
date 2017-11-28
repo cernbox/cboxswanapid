@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"bytes"
-	"github.com/gorilla/context"
 	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/mux"
+	"github.com/gorilla/context"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -293,7 +292,8 @@ func executeCMD(cmd *exec.Cmd) (*bytes.Buffer, *bytes.Buffer, error) {
 
 func Search(logger *zap.Logger, cboxgroupdUrl, cboxgroupdSecret string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		filter := mux.Vars(r)["filter"]
+		params := r.URL.Query()
+		filter := params.Get("filter")
 		fmt.Printf("filter:%s\n", filter)
 
 		url := strings.Join([]string{cboxgroupdUrl, filter}, "/")
@@ -391,7 +391,7 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 			return
 		}
 
-		v := context.Get(r,"username")
+		v := context.Get(r, "username")
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)
@@ -446,7 +446,7 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 			return
 		}
 
-		v := context.Get(r,"username")
+		v := context.Get(r, "username")
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)
@@ -535,7 +535,7 @@ func Shared(logger *zap.Logger, allowFrom string, action string, requireProject 
 			return
 		}
 
-		v := context.Get(r,"username")
+		v := context.Get(r, "username")
 		username, _ := v.(string)
 
 		logger.Info("loggedin user is " + username)
