@@ -4,7 +4,7 @@
 
 Name: cboxswanapid
 Summary: A server that allows SWAN to share with users and groups.
-Version: 1.1.0
+Version: 1.1.1
 Release: 1%{?dist}
 License: AGPLv3
 BuildRoot: %{_tmppath}/%{name}-buildroot
@@ -54,6 +54,8 @@ rm -rf %buildroot/
 
 
 %changelog
+* Thu Nov 28 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.1.1
+- add CORS support to search endpoint
 * Thu Nov 28 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.1.0
 - search endpoint now uses query params instead of url param
 * Thu Nov 27 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.0.3
