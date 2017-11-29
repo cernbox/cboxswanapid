@@ -86,7 +86,7 @@ func CheckHostAllowed(origin url.URL, allowFrom string, logger *zap.Logger) bool
 	// TODO: case insensitive
 	matched, _ := regexp.MatchString(allowFrom, origin.Host)
 
-	logger.Info(fmt.Sprintf("***** Checking Allowed Host:  %s matches %s => %s", origin, allowFrom, matched))
+	logger.Info(fmt.Sprintf("***** Checking Allowed Host:  %s matches %s => %b", origin.String(), allowFrom, matched))
 
 	return matched
 
@@ -290,8 +290,12 @@ func executeCMD(cmd *exec.Cmd) (*bytes.Buffer, *bytes.Buffer, error) {
 	return outBuf, errBuf, err
 }
 
-func Search(logger *zap.Logger, cboxgroupdUrl, cboxgroupdSecret string) http.Handler {
+func Search(logger *zap.Logger, allowFrom, cboxgroupdUrl, cboxgroupdSecret string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
+			return
+		}
+
 		params := r.URL.Query()
 		filter := params.Get("filter")
 		fmt.Printf("filter:%s\n", filter)
