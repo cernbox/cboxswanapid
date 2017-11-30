@@ -418,7 +418,7 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 			return
 		}
 
-		args := []string{"-c", "/root/kuba-config.php", "--json", "swan-delete-project-share", username, project}
+		args := []string{"-c", "/root/kuba-config.php", "--json", "delete-share", username, project}
 
 		logger.Info(fmt.Sprintf("cmd args %s", args))
 
