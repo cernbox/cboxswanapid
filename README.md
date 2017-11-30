@@ -154,6 +154,7 @@ Body
    ]}
 
 ```
+Entity can be "egroup", for egroups, "g", for unixgroup, and "u" for all other user accounts (primary, secondary and service).
 
 Response Examples
 
