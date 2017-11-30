@@ -1,40 +1,38 @@
 # cboxswanapid
 SWAN API Daemon for CERNBox
 
-# Preliminary version of the spec
-
 ## Authentication
 
 ### GET /authenticate
 
 Protected by shibboleth.
 
-You may need to make this request twice in case of shibboleth redirection.
-
 
 Query parameters: 
 
 ```
-Origin=https://swanXXX.cern.ch
+Origin=https://swanXXX.example.org
 ```
+
+This parameter must be of type _swan*.example.org_
 
 Response headers
 
 ```
-X-Frame-Options: ALLOW-FROM https://swanXXX.example.org
+Content-Security-Policy: frame-ancestors https://swanXXX.example.org
 ```
 
-Accessed through an iFrame. Hence it sets the header X-Frame-Options to be possible to open it as an iFrame.
+Accessed through an iFrame. Hence it sets the header Content-Security-Policy to be possible to open it as an iFrame.
 
 Returns a page with a script that calls parent.postMessage(...) (https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage). This call should send a token with expire date (ISO format).
 
 Response Examples
 
 ```
-<script>parent.postMessage({"authtoken":"xxxx","expire":"2017-06-20 13:00:00"}, 'https://swanXXX.cern.ch');</script>
+<script>parent.postMessage({"authtoken":"xxxx","expire":"2017-06-20 13:00:00"}, 'https://swanXXX.example.org');</script>
 ```
 
-## Sharing API
+## Security
 
 All API requests need a valid authtoken (provided by /authenticate) in the request header:
 
@@ -73,7 +71,7 @@ The reply to OPTIONS request needs the following headers:
 
  ```
  
- Access-Control-Allow-Origin: https://swanXXX.cern.ch
+ Access-Control-Allow-Origin: https://swanXXX.example.org
  Access-Control-Allow-Methods: GET, POST, PUT, DELETE (depending on the endpoint)
  Access-Control-Allow-Headers: Authorization
  
@@ -82,6 +80,8 @@ The reply to OPTIONS request needs the following headers:
 In the Allow-Methods, the list should contain all the methods allowed on that endpoint, so that the browser can cache 
 this reply.
 
+
+## Sharing API
  
 
 ### GET /sharing
@@ -100,8 +100,8 @@ Response Examples
      "size": "1300"
      "inode": "10635762", 
      "shared_with": [ 
-                {"permissions": "r", "created": "2017-11-07T19:45:54", "name": "moscicki", "entity": "u"}, 
-                {"permissions": "r", "created": "2017-11-07T19:45:54", "name": "kubam", "entity": "u"}
+                {"permissions": "r", "created": "2017-11-07T19:45:54", "name": "moscicki", "entity": "u", "display_name": "Jakub Moscicki"}, 
+                {"permissions": "r", "created": "2017-11-07T19:45:54", "name": "kubam", "entity": "u", "display_name": "Jakub Moscicki"}
               ]
     }, 
     {"project": "SWAN_projects/SP2", 
@@ -110,8 +110,8 @@ Response Examples
      "size": "1250667"}     
      "inode": "10635763",
      "shared_with": [ 
-                {"permissions": "r", "created": "2017-11-07T19:45:31", "name": "kubam", "entity": "u"}, 
-                {"permissions": "r", "created": "2017-11-07T19:45:31", "name": "kuba", "entity": "u"}
+                {"permissions": "r", "created": "2017-11-07T19:45:31", "name": "kubam", "entity": "u", "display_name": "Jakub Moscicki"}, 
+                {"permissions": "r", "created": "2017-11-07T19:45:31", "name": "kuba", "entity": "u", "display_name": "Jakub Moscicki"}
               ] 
 ]}
 
@@ -138,7 +138,7 @@ Response Examples: same as for /sharing but contains only the chosen project ent
 
 ### PUT /share
 
-Shares a project with specified users or groups. If project was shared with other users or group it will not longer be shared them.
+Shares a project with specified users or groups. If project was shared with other users or group not present in this list, it will not longer be shared with them.
 
 Query parameters
 ```
@@ -211,7 +211,7 @@ Response Examples
 {"error":"Name already exists"}
 ```
 
-## User API
+## Directory API
 
 ### GET /search?filter=`<filter>`
 
@@ -220,8 +220,10 @@ The account_type key can have the following values: primary, secondary, service,
 
 Query Params
 
+```
 filter: name to search for. If name is prefixed by *a*: the result will also include service and secondary accounts.
 If the prefix g: is used, only unix groups will be shown.
+```
 
 Response Examples
 
@@ -235,35 +237,35 @@ Response Examples
         "cn": "casallab",
         "display_name": "Jorge Casal Labrador",
         "dn": "CN=casallab,OU=Users,OU=Organic Units,DC=cern,DC=ch",
-        "mail": "jorge.casal.labrador@cern.ch"
+        "mail": "jorge.casal.labrador@example.org"
     },
     {
         "account_type": "primary",
         "cn": "gonzalhu",
         "display_name": "Hugo Gonzalez Labrador",
         "dn": "CN=gonzalhu,OU=Users,OU=Organic Units,DC=cern,DC=ch",
-        "mail": "hugo.gonzalez.labrador@cern.ch"
+        "mail": "hugo.gonzalez.labrador@example.org"
     },
     {
         "account_type": "egroup",
         "cn": "cernbox-project-labradorprojecttest-writers",
         "display_name": "cernbox-project-labradorprojecttest-writers (CERNBOX PROJECT LABRADORPROJECTTEST WRITERS)",
         "dn": "CN=cernbox-project-labradorprojecttest-writers,OU=e-groups,OU=Workgroups,DC=cern,DC=ch",
-        "mail": "cernbox-project-labradorprojecttest-writers@cern.ch"
+        "mail": "cernbox-project-labradorprojecttest-writers@example.org"
     },
     {
         "account_type": "egroup",
         "cn": "cernbox-project-labradorprojecttest-readers",
         "display_name": "cernbox-project-labradorprojecttest-readers (CERNBOX PROJECT LABRADORPROJECTTEST READERS)",
         "dn": "CN=cernbox-project-labradorprojecttest-readers,OU=e-groups,OU=Workgroups,DC=cern,DC=ch",
-        "mail": "cernbox-project-labradorprojecttest-readers@cern.ch"
+        "mail": "cernbox-project-labradorprojecttest-readers@example.org"
     },
     {
         "account_type": "egroup",
         "cn": "cernbox-project-labradorprojecttest-admins",
         "display_name": "cernbox-project-labradorprojecttest-admins (CERNBOX PROJECT LABRADORPROJECTTEST ADMINS)",
         "dn": "CN=cernbox-project-labradorprojecttest-admins,OU=e-groups,OU=Workgroups,DC=cern,DC=ch",
-        "mail": "cernbox-project-labradorprojecttest-admins@cern.ch"
+        "mail": "cernbox-project-labradorprojecttest-admins@example.org"
     }
 ]
 
