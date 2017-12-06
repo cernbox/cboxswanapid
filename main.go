@@ -37,6 +37,7 @@ func init() {
 	viper.SetDefault("shibreferer", "https://login.cern.ch")
 	viper.SetDefault("cboxgroupdurl", "http://localhost:2002/api/v1/search")
 	viper.SetDefault("cboxgroupdsecret", "changeme")
+	viper.SetDefault("cboxsharescript", "/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project")
 
 	viper.SetConfigName("cboxswanapid")
 	viper.AddConfigPath("/etc/cboxswanapid/")
@@ -50,6 +51,7 @@ func init() {
 	flag.String("cboxgroupdsecret", "", "Shared secret to communicate with the cboxgroupd daemon")
 	flag.String("cboxgroupdurl", "http://localhost:2002/api/v1/search", "URL to address the cboxgroupd daemon")
 	flag.String("config", "", "Configuration file to use")
+	flag.String("cboxsharescript", "/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", "Path to the cernbox share script")
 	flag.Parse()
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -80,13 +82,13 @@ func main() {
 
 	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, viper.GetString("signkey"), viper.GetString("allowfrom"), viper.GetString("shibreferer")))
 
-	sharedHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "list-shared-with", false))
-	sharingHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "list-shared-by", false))
-	getIndividualShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("allowfrom"), "list-shared-by", true))
-	updateShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.UpdateShare(logger, viper.GetString("allowfrom")))
-	deleteShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.DeleteShare(logger, viper.GetString("allowfrom")))
+	sharedHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-with", false))
+	sharingHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-by", false))
+	getIndividualShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-by", true))
+	updateShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.UpdateShare(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom")))
+	deleteShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.DeleteShare(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom")))
 	searchHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Search(logger, viper.GetString("allowfrom"), viper.GetString("cboxgroupdurl"), viper.GetString("cboxgroupdsecret")))
-	cloneShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.CloneShare(logger, viper.GetString("allowfrom")))
+	cloneShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.CloneShare(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom")))
 	notFoundHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Handle404(logger))
 
 	router.NotFoundHandler = notFoundHandler // default protection for non-existing resources is JWT

@@ -315,7 +315,7 @@ func Search(logger *zap.Logger, allowFrom, cboxgroupdUrl, cboxgroupdSecret strin
 	})
 }
 
-func CloneShare(logger *zap.Logger, allowFrom string) http.Handler {
+func CloneShare(logger *zap.Logger, cboxShareScript string, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
@@ -367,7 +367,7 @@ func CloneShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		logger.Info(fmt.Sprintf("cmd args %s", args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", args...)
+		cmd := exec.Command(cboxShareScript, args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
@@ -388,7 +388,7 @@ func CloneShare(logger *zap.Logger, allowFrom string) http.Handler {
 	})
 }
 
-func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
+func DeleteShare(logger *zap.Logger, cboxShareScript, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
@@ -422,7 +422,7 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		logger.Info(fmt.Sprintf("cmd args %s", args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", args...)
+		cmd := exec.Command(cboxShareScript, args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
@@ -443,7 +443,7 @@ func DeleteShare(logger *zap.Logger, allowFrom string) http.Handler {
 	})
 }
 
-func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
+func UpdateShare(logger *zap.Logger, cboxShareScript, allowFrom string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
@@ -511,7 +511,7 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 
 		logger.Info(fmt.Sprintf("cmd args %s", args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", args...)
+		cmd := exec.Command(cboxShareScript, args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
@@ -532,7 +532,7 @@ func UpdateShare(logger *zap.Logger, allowFrom string) http.Handler {
 	})
 }
 
-func Shared(logger *zap.Logger, allowFrom string, action string, requireProject bool) http.Handler {
+func Shared(logger *zap.Logger, cboxShareScript, allowFrom string, action string, requireProject bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
@@ -586,7 +586,7 @@ func Shared(logger *zap.Logger, allowFrom string, action string, requireProject 
 
 		logger.Info(fmt.Sprintf("cmd args %s", args))
 
-		cmd := exec.Command("/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", args...)
+		cmd := exec.Command(cboxShareScript, args...)
 
 		jsonResponse, errBuf, err := executeCMD(cmd)
 
