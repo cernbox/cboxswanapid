@@ -4,7 +4,7 @@
 
 Name: cboxswanapid
 Summary: A server that allows SWAN to share with users and groups.
-Version: 1.1.4
+Version: 1.1.5
 Release: 1%{?dist}
 License: AGPLv3
 BuildRoot: %{_tmppath}/%{name}-buildroot
@@ -54,6 +54,8 @@ rm -rf %buildroot/
 
 
 %changelog
+* Mon Dec 12 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.1.5
+- Fix hardcoded configuration
 * Mon Dec 11 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.1.4
 - Add flag to specify script to run the share actions
 * Thu Nov 30 2017 Hugo Gonzalez Labrador <hugo.gonzalez.labrador@cern.ch> 1.1.3

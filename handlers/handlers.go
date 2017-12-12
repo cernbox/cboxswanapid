@@ -363,7 +363,7 @@ func CloneShare(logger *zap.Logger, cboxShareScript string, allowFrom string) ht
 			return
 		}
 
-		args := []string{"-c", "/root/kuba-config.php", "--json", "clone-share", sharer, shared_project, username, cloned_project}
+		args := []string{"--json", "clone-share", sharer, shared_project, username, cloned_project}
 
 		logger.Info(fmt.Sprintf("cmd args %s", args))
 
@@ -418,7 +418,7 @@ func DeleteShare(logger *zap.Logger, cboxShareScript, allowFrom string) http.Han
 			return
 		}
 
-		args := []string{"-c", "/root/kuba-config.php", "--json", "delete-share", username, project}
+		args := []string{"--json", "delete-share", username, project}
 
 		logger.Info(fmt.Sprintf("cmd args %s", args))
 
@@ -473,7 +473,7 @@ func UpdateShare(logger *zap.Logger, cboxShareScript, allowFrom string) http.Han
 			return
 		}
 
-		args := []string{"-c", "/root/kuba-config.php", "--json", "update-share", username, project}
+		args := []string{"--json", "update-share", username, project}
 
 		type Sharee struct {
 			Name   string `json:"name"`   // name of user or group
@@ -576,7 +576,7 @@ func Shared(logger *zap.Logger, cboxShareScript, allowFrom string, action string
 			Shared []*shareInfo `json:"shared"`
 		}
 
-		args := []string{"-c", "/root/kuba-config.php", "--json", action}
+		args := []string{"--json", action}
 
 		if project != "" {
 			args = append(args, "--project", project)
