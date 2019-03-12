@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/context"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +11,10 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/context"
+	"go.uber.org/zap"
 )
 
 /////////////////
@@ -92,17 +93,39 @@ func CheckHostAllowed(origin url.URL, allowFrom string, logger *zap.Logger) bool
 
 }
 
-func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer string) http.Handler {
+func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer, ssoScript, ssoField string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		logger.Info(formatRequest(r))
 
-		username := r.Header.Get("adfs_login") // this comes back from shibolleth (the name of the header depends on shibd configuration)
+		var username string
+		if ssoScript != "" && ssoField != "" {
 
-		if username == "" {
-			logger.Error("Request header 'adfs_login' is empty or not set")
-			w.WriteHeader(http.StatusBadRequest)
-			return
+			ssoIdentifier := r.Header.Get(ssoField)
+
+			cmd := exec.Command(ssoScript, ssoIdentifier)
+			response, _, err := executeCMD(cmd)
+
+			if err != nil {
+				logger.Error("Error calling SSO script", zap.String("script", ssoScript), zap.String("ssoField", ssoField), zap.String("ssoIdentifier", ssoIdentifier))
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			username = string(response.Bytes())
+			username = strings.TrimSuffix(username, "\n")
+
+		} else {
+
+			// Default behaviour for CERN
+
+			username = r.Header.Get("adfs_login") // this comes back from shibolleth (the name of the header depends on shibd configuration)
+
+			if username == "" {
+				logger.Error("Request header 'adfs_login' is empty or not set")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 
 		m, err := url.ParseQuery(r.URL.RawQuery)

@@ -3,15 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+
 	"github.com/cernbox/cboxswanapid/handlers"
 	gh "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
-	"os"
 )
 
 // Build information obtained with the help of -ldflags
@@ -52,6 +53,8 @@ func init() {
 	flag.String("cboxgroupdurl", "http://localhost:2002/api/v1/search", "URL to address the cboxgroupd daemon")
 	flag.String("config", "", "Configuration file to use")
 	flag.String("cboxsharescript", "/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", "Path to the cernbox share script")
+	flag.String("ssotranslaterscript", "", "Script to retrieve the user login")
+	flag.String("ssofield", "", "Field to retrieve from the SSO reply and pass to the ssotranslaterscript")
 	flag.Parse()
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -80,7 +83,7 @@ func main() {
 
 	router := mux.NewRouter()
 
-	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, viper.GetString("signkey"), viper.GetString("allowfrom"), viper.GetString("shibreferer")))
+	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, viper.GetString("signkey"), viper.GetString("allowfrom"), viper.GetString("shibreferer"), viper.GetString("ssotranslaterscript"), viper.GetString("ssofield")))
 
 	sharedHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-with", false))
 	sharingHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-by", false))
