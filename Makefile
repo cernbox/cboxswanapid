@@ -5,10 +5,17 @@ VERSION  = $(shell awk '$$1 == "Version:"  { print $$2 }' $(SPECFILE) )
 RELEASE  = $(shell awk '$$1 == "Release:"  { print $$2 }' $(SPECFILE) )
 rpmbuild = ${shell pwd}/rpmbuild
 
+default: all
+
+all: 
+	docker build -t cbox_rpm_builder_img .
+	docker run --rm -it -v ${pwd}:/root/cboxswanapid cbox_rpm_builder_img bash -lc "find && cd /root/cboxswanapid && make rpm"
+
 clean:
 	@rm -rf $(PACKAGE)-$(VERSION)
 	@rm -rf $(rpmbuild)
 	@rm -rf *rpm
+	@rm -rf cboxswanapid
 
 rpmdefines=--define='_topdir ${rpmbuild}' \
         --define='_sourcedir %{_topdir}/SOURCES' \
@@ -17,7 +24,6 @@ rpmdefines=--define='_topdir ${rpmbuild}' \
         --define='_rpmdir %{_topdir}/RPMS'
 
 dist: clean
-	glide install
 	go build
 	@mkdir -p $(PACKAGE)-$(VERSION)
 	@cp -r $(FILES_TO_RPM) $(PACKAGE)-$(VERSION)
