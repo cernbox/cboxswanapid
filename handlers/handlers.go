@@ -2,11 +2,9 @@ package handlers
 
 import (
 	"bytes"
+	ctx "context"
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/context"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +12,11 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/context"
+	"go.uber.org/zap"
 )
 
 /////////////////
@@ -72,6 +75,43 @@ func CheckSharedSecret(logger *zap.Logger, secret string, handler http.Handler) 
 
 func CheckNothing(logger *zap.Logger, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+	})
+}
+
+func CheckOIDCToken(logger *zap.Logger, contx ctx.Context, verifier *oidc.IDTokenVerifier, handler http.Handler, allowFrom string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if !CORSProcessOriginHeader(logger, w, r, allowFrom) {
+			return
+		}
+
+		h := r.Header.Get("Authorization")
+		parts := strings.Split(h, " ")
+		if len(parts) != 2 {
+			logger.Error("wrong JWT header")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		token := parts[1]
+
+		idToken, err := verifier.Verify(contx, token)
+		if err != nil {
+			logger.Error("error validating jwt token")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		var claims struct {
+			Subject string `json:"sub"`
+		}
+		if err := idToken.Claims(&claims); err != nil {
+			logger.Error("error getting token subject")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		context.Set(r, "username", claims.Subject)
 		handler.ServeHTTP(w, r)
 	})
 }
@@ -166,6 +206,31 @@ func Token(logger *zap.Logger, signKey string, allowFrom string, shibReferer str
 		w.Header().Set("X-Frame-Options", fmt.Sprintf("ALLOW-FROM %s", referer_host))
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("<script>parent.postMessage(" + string(jsonBody) + ", '" + referer_host + "');</script>"))
+	})
+}
+
+func Token2(logger *zap.Logger, signKey string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		v := context.Get(r, "username")
+		username, _ := v.(string)
+
+		expire := time.Now().Add(time.Duration(3600) * time.Second) // TODO(labkode): expire data in config
+
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		claims := token.Claims.(jwt.MapClaims)
+		claims["username"] = username
+		claims["exp"] = expire.UnixNano()
+		tokenString, _ := token.SignedString([]byte(signKey))
+
+		response := &struct {
+			Token  string    `json:"authtoken"`
+			Expire time.Time `json:"expire"`
+		}{Token: tokenString, Expire: expire}
+
+		w.Header().Set("Content-Type", "application/json")
+		encoded, _ := json.Marshal(response)
+		w.Write(encoded)
 	})
 }
 
