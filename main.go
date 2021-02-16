@@ -1,17 +1,19 @@
 package main
 
 import (
-	"flag"
+	"context"
 	"fmt"
-	"github.com/cernbox/cboxswanapid/handlers"
-	gh "github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/cernbox/cboxswanapid/handlers"
+	"github.com/cernbox/gohub/goconfig"
+	"github.com/cernbox/gohub/gologger"
+	"github.com/coreos/go-oidc/v3/oidc"
+	gh "github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 // Build information obtained with the help of -ldflags
@@ -23,77 +25,59 @@ var (
 	gitCommit     string // git rev-parse HEAD
 )
 
-var fVersion bool
+var gc *goconfig.GoConfig
 
 func init() {
-	flag.BoolVar(&fVersion, "version", false, "Show version")
-
-	viper.SetDefault("port", 2005)
-	viper.SetDefault("applog", "stderr")
-	viper.SetDefault("httplog", "stderr")
-	viper.SetDefault("secret", "changeme")
-	viper.SetDefault("signkey", "changeme")
-	viper.SetDefault("allowfrom", "swan[a-z0-9-]*.cern.ch")
-	viper.SetDefault("shibreferer", "https://login.cern.ch")
-	viper.SetDefault("cboxgroupdurl", "http://localhost:2002/api/v1/search")
-	viper.SetDefault("cboxgroupdsecret", "changeme")
-	viper.SetDefault("cboxsharescript", "/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project")
-
-	viper.SetConfigName("cboxswanapid")
-	viper.AddConfigPath("/etc/cboxswanapid/")
-	flag.Int("port", 2005, "Port to listen for connections")
-	flag.String("applog", "stderr", "File to log application data")
-	flag.String("httplog", "stderr", "File to log HTTP requests")
-	flag.String("secret", "changeme", "Shared secret with SWAN")
-	flag.String("signkey", "changeme", "Secret to sign JWT tokens")
-	flag.String("allowfrom", "swan[a-z0-9-]*.cern.ch", "Check the Referer/Origin request header (depending on the endpoint) and return Bad Request if no match.")
-	flag.String("shibreferer", "https://login.cern.ch", "Shibolleth referer for /authenticate request.")
-	flag.String("cboxgroupdsecret", "", "Shared secret to communicate with the cboxgroupd daemon")
-	flag.String("cboxgroupdurl", "http://localhost:2002/api/v1/search", "URL to address the cboxgroupd daemon")
-	flag.String("config", "", "Configuration file to use")
-	flag.String("cboxsharescript", "/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", "Path to the cernbox share script")
-	flag.Parse()
-
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
+	gc = goconfig.New()
+	gc.SetConfigName("cboxswanapid")
+	gc.AddConfigurationPaths("/etc/cboxswanapid")
+	gc.Add("port", 2005, "Port to listen for connections")
+	gc.Add("applog", "stderr", "File to log application data")
+	gc.Add("httplog", "stderr", "File to log HTTP requests")
+	gc.Add("secret", "changeme", "Shared secret with SWAN")
+	gc.Add("signkey", "changeme", "Secret to sign JWT tokens")
+	gc.Add("swanclient", "swan-service", "SWAN client id")
+	gc.Add("oidcprovider", "https://auth.cern.ch/auth/realms/cern", "OIDC endpoint")
+	gc.Add("allowfrom", "swan[a-z0-9-]*.cern.ch", "Check the Referer/Origin request header (depending on the endpoint) and return Bad Request if no match.")
+	gc.Add("shibreferer", "https://login.cern.ch", "Shibolleth referer for /authenticate request.")
+	gc.Add("cboxgroupdsecret", "", "Shared secret to communicate with the cboxgroupd daemon")
+	gc.Add("cboxgroupdurl", "http://localhost:2002/api/v1/search", "URL to address the cboxgroupd daemon")
+	gc.Add("config", "", "Configuration file to use")
+	gc.Add("cboxsharescript", "/b/dev/kuba/devel.cernbox_utils/cernbox-swan-project", "Path to the cernbox share script")
+	gc.Add("log-level", "info", "log level to use (debug, info, warn, error)")
+	gc.BindFlags()
+	gc.ReadConfig()
 }
 
 func main() {
 
-	if fVersion {
-		showVersion()
-	}
-
-	if viper.GetString("config") != "" {
-		viper.SetConfigFile(viper.GetString("config"))
-	}
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("error reading config file: %s", err))
-	}
-
-	config := zap.NewProductionConfig()
-	config.OutputPaths = []string{viper.GetString("applog")}
-	logger, _ := config.Build()
+	logger := gologger.New(gc.GetString("log-level"), gc.GetString("applog"))
 
 	router := mux.NewRouter()
 
-	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, viper.GetString("signkey"), viper.GetString("allowfrom"), viper.GetString("shibreferer")))
+	ctx := context.Background()
+	oidcProvider, err := oidc.NewProvider(ctx, gc.GetString("oidcprovider"))
+	if err != nil {
+		panic(fmt.Errorf("error configuring oidc provider", err))
+	}
+	var verifier = oidcProvider.Verifier(&oidc.Config{ClientID: gc.GetString("swanclient")})
 
-	sharedHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-with", false))
-	sharingHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-by", false))
-	getIndividualShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Shared(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom"), "list-shared-by", true))
-	updateShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.UpdateShare(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom")))
-	deleteShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.DeleteShare(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom")))
-	searchHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Search(logger, viper.GetString("allowfrom"), viper.GetString("cboxgroupdurl"), viper.GetString("cboxgroupdsecret")))
-	cloneShareHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.CloneShare(logger, viper.GetString("cboxsharescript"), viper.GetString("allowfrom")))
-	notFoundHandler := handlers.CheckJWTToken(logger, viper.GetString("signkey"), handlers.Handle404(logger))
+	tokenHandler := handlers.CheckNothing(logger, handlers.Token(logger, gc.GetString("signkey"), gc.GetString("allowfrom"), gc.GetString("shibreferer")))
+	tokenHandler2 := handlers.CheckOIDCToken(logger, ctx, verifier, handlers.Token2(logger, gc.GetString("signkey")), gc.GetString("allowfrom"))
+
+	sharedHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.Shared(logger, gc.GetString("cboxsharescript"), gc.GetString("allowfrom"), "list-shared-with", false))
+	sharingHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.Shared(logger, gc.GetString("cboxsharescript"), gc.GetString("allowfrom"), "list-shared-by", false))
+	getIndividualShareHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.Shared(logger, gc.GetString("cboxsharescript"), gc.GetString("allowfrom"), "list-shared-by", true))
+	updateShareHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.UpdateShare(logger, gc.GetString("cboxsharescript"), gc.GetString("allowfrom")))
+	deleteShareHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.DeleteShare(logger, gc.GetString("cboxsharescript"), gc.GetString("allowfrom")))
+	searchHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.Search(logger, gc.GetString("allowfrom"), gc.GetString("cboxgroupdurl"), gc.GetString("cboxgroupdsecret")))
+	cloneShareHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.CloneShare(logger, gc.GetString("cboxsharescript"), gc.GetString("allowfrom")))
+	notFoundHandler := handlers.CheckJWTToken(logger, gc.GetString("signkey"), handlers.Handle404(logger))
 
 	router.NotFoundHandler = notFoundHandler // default protection for non-existing resources is JWT
 
 	router.Handle("/swanapi/v1/authenticate", tokenHandler).Methods("GET")
+	router.Handle("/swanapi/v2/authenticate", tokenHandler2).Methods("GET")
 	router.Handle("/swanapi/v1/shared", sharedHandler).Methods("GET")
 	router.Handle("/swanapi/v1/sharing", sharingHandler).Methods("GET")
 	router.Handle("/swanapi/v1/share", getIndividualShareHandler).Methods("GET")
@@ -102,17 +86,17 @@ func main() {
 	router.Handle("/swanapi/v1/search", searchHandler).Methods("GET")
 	router.Handle("/swanapi/v1/clone", cloneShareHandler).Methods("POST")
 
-	router.Handle("/swanapi/v1/shared", handlers.Options(logger, []string{"GET"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
-	router.Handle("/swanapi/v1/sharing", handlers.Options(logger, []string{"GET"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
-	router.Handle("/swanapi/v1/share", handlers.Options(logger, []string{"GET", "PUT", "DELETE"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
-	router.Handle("/swanapi/v1/clone", handlers.Options(logger, []string{"POST"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
-	router.Handle("/swanapi/v1/search", handlers.Options(logger, []string{"GET"}, viper.GetString("allowfrom"))).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/shared", handlers.Options(logger, []string{"GET"}, gc.GetString("allowfrom"))).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/sharing", handlers.Options(logger, []string{"GET"}, gc.GetString("allowfrom"))).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/share", handlers.Options(logger, []string{"GET", "PUT", "DELETE"}, gc.GetString("allowfrom"))).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/clone", handlers.Options(logger, []string{"POST"}, gc.GetString("allowfrom"))).Methods("OPTIONS")
+	router.Handle("/swanapi/v1/search", handlers.Options(logger, []string{"GET"}, gc.GetString("allowfrom"))).Methods("OPTIONS")
 
-	out := getHTTPLoggerOut(viper.GetString("httplog"))
+	out := getHTTPLoggerOut(gc.GetString("httplog"))
 	loggedRouter := gh.LoggingHandler(out, router)
 
-	logger.Info("server is listening", zap.Int("port", viper.GetInt("port")))
-	logger.Warn("server stopped", zap.Error(http.ListenAndServe(fmt.Sprintf(":%d", viper.GetInt("port")), loggedRouter)))
+	logger.Info("server is listening", zap.Int("port", gc.GetInt("port")))
+	logger.Warn("server stopped", zap.Error(http.ListenAndServe(fmt.Sprintf(":%d", gc.GetInt("port")), loggedRouter)))
 }
 
 func getHTTPLoggerOut(filename string) *os.File {
